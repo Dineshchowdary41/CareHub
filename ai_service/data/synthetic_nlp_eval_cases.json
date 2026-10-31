@@ -1,0 +1,72 @@
+[
+  {
+    "raw_text": "Tab Paracetamol 500 mg twice daily for 5 days",
+    "expected_medicine": "Paracetamol",
+    "expected_dosage": "500 mg",
+    "expected_frequency": "Twice daily",
+    "expected_duration": "5 days"
+  },
+  {
+    "raw_text": "Amoxicillin 500mg 3 times a day for 7 days after food",
+    "expected_medicine": "Amoxicillin",
+    "expected_dosage": "500mg",
+    "expected_frequency": "Thrice daily",
+    "expected_duration": "7 days"
+  },
+  {
+    "raw_text": "Take Cetirizine 10 mg once daily at bedtime for 10 days",
+    "expected_medicine": "Cetirizine",
+    "expected_dosage": "10 mg",
+    "expected_frequency": "Once daily",
+    "expected_duration": "10 days"
+  },
+  {
+    "raw_text": "Metformin 500 mg 1-0-1 for 30 days regularly",
+    "expected_medicine": "Metformin",
+    "expected_dosage": "500 mg",
+    "expected_frequency": "Twice daily",
+    "expected_duration": "30 days"
+  },
+  {
+    "raw_text": "Cap Pantoprazole 40 mg OD before breakfast for 14 days",
+    "expected_medicine": "Pantoprazole",
+    "expected_dosage": "40 mg",
+    "expected_frequency": "Once daily",
+    "expected_duration": "14 days"
+  },
+  {
+    "raw_text": "Atorvastatin 20 mg 0-0-1 for 1 month",
+    "expected_medicine": "Atorvastatin",
+    "expected_dosage": "20 mg",
+    "expected_frequency": "Once daily",
+    "expected_duration": "1 month"
+  },
+  {
+    "raw_text": "Azithromycin 500 mg once daily for 3 days",
+    "expected_medicine": "Azithromycin",
+    "expected_dosage": "500 mg",
+    "expected_frequency": "Once daily",
+    "expected_duration": "3 days"
+  },
+  {
+    "raw_text": "Tab Ibuprofen 400 mg twice daily for 4 days",
+    "expected_medicine": "Ibuprofen",
+    "expected_dosage": "400 mg",
+    "expected_frequency": "Twice daily",
+    "expected_duration": "4 days"
+  },
+  {
+    "raw_text": "Omeprazole 20 mg OD for 14 days",
+    "expected_medicine": "Omeprazole",
+    "expected_dosage": "20 mg",
+    "expected_frequency": "Once daily",
+    "expected_duration": "14 days"
+  },
+  {
+    "raw_text": "Ciprofloxacin 500 mg BD for 7 days",
+    "expected_medicine": "Ciprofloxacin",
+    "expected_dosage": "500 mg",
+    "expected_frequency": "Twice daily",
+    "expected_duration": "7 days"
+  }
+]

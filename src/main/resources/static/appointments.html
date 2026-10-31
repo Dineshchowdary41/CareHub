@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Appointments — CareHub 3.0</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>Appointment Management</h2>
+          <p>Schedule doctor consultations, track patient visits, and manage status workflows</p>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="filter-pills" id="statusFilterPills">
+          <button class="filter-pill active" onclick="setFilter('ALL')">All Appointments</button>
+          <button class="filter-pill" onclick="setFilter('TODAY')">Today's Visits</button>
+          <button class="filter-pill" onclick="setFilter('Scheduled')">Scheduled</button>
+          <button class="filter-pill" onclick="setFilter('Confirmed')">Confirmed</button>
+          <button class="filter-pill" onclick="setFilter('Completed')">Completed</button>
+          <button class="filter-pill" onclick="setFilter('Cancelled')">Cancelled</button>
+        </div>
+        <button class="btn btn-primary" onclick="openBookModal()">+ Book Appointment</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <input class="search-box" id="searchInput" placeholder="Search patient, doctor, reason..." oninput="filterTable()" />
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Patient</th>
+              <th>Doctor</th>
+              <th>Date & Time</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="appointmentBody">
+            <tr class="empty-row"><td colspan="7">Loading appointments...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Booking Modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 id="modalTitle">Book Appointment</h3>
+      <form id="appointmentForm" onsubmit="saveAppointment(event)">
+        <input type="hidden" id="editAppointmentId" />
+        <div class="form-group">
+          <label>Patient *</label>
+          <select id="modalPatient" required>
+            <option value="">-- select patient --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Doctor *</label>
+          <select id="modalDoctor" required>
+            <option value="">-- select doctor --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Appointment Date & Time *</label>
+          <input type="datetime-local" id="modalDateTime" required />
+        </div>
+        <div class="form-group">
+          <label>Reason for Visit *</label>
+          <input type="text" id="modalReason" placeholder="e.g. Fever checkup, Cardiology review" required />
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="modalStatus">
+            <option value="Scheduled">Scheduled</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Clinical Notes</label>
+          <textarea id="modalNotes" placeholder="Optional pre-consultation notes or instructions"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Appointment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    const user = requireAuth();
+    renderSidebar("appointments");
+
+    let allAppointments = [];
+    let currentFilter = "ALL";
+    let patientsCache = [];
+    let doctorsCache = [];
+
+    function showToast(msg, isError) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.className = "toast show" + (isError ? " error" : "");
+      setTimeout(() => { t.className = "toast"; }, 2800);
+    }
+
+    async function loadDropdowns() {
+      try {
+        patientsCache = await Api.get("/patients");
+        const pSel = document.getElementById("modalPatient");
+        pSel.innerHTML = '<option value="">-- select patient --</option>' +
+          patientsCache.map(p => `<option value="${p.patientId}">${p.name} (${p.phone || 'ID: ' + p.patientId})</option>`).join("");
+
+        doctorsCache = await Api.get("/doctors");
+        const dSel = document.getElementById("modalDoctor");
+        dSel.innerHTML = '<option value="">-- select doctor --</option>' +
+          doctorsCache.map(d => `<option value="${d.doctorId}">${d.name} — ${d.specialization || 'General'}</option>`).join("");
+      } catch (e) {
+        showToast("Error loading doctors/patients: " + e.message, true);
+      }
+    }
+
+    async function loadAppointments() {
+      const body = document.getElementById("appointmentBody");
+      try {
+        allAppointments = await Api.get("/appointments");
+        filterTable();
+      } catch (e) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="7">Error loading appointments: ${e.message}</td></tr>`;
+      }
+    }
+
+    function setFilter(status) {
+      currentFilter = status;
+      document.querySelectorAll("#statusFilterPills .filter-pill").forEach(p => p.classList.remove("active"));
+      event.target.classList.add("active");
+      filterTable();
+    }
+
+    function filterTable() {
+      const q = (document.getElementById("searchInput").value || "").toLowerCase().trim();
+      const body = document.getElementById("appointmentBody");
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      const filtered = allAppointments.filter(a => {
+        // Status filter
+        if (currentFilter === "TODAY") {
+          if (!a.appointmentDateTime || !a.appointmentDateTime.startsWith(todayStr)) return false;
+        } else if (currentFilter !== "ALL") {
+          if (a.status !== currentFilter) return false;
+        }
+
+        // Query filter
+        if (q) {
+          const pName = a.patient ? a.patient.name.toLowerCase() : "";
+          const dName = a.doctor ? a.doctor.name.toLowerCase() : "";
+          const reason = (a.reason || "").toLowerCase();
+          return pName.includes(q) || dName.includes(q) || reason.includes(q);
+        }
+        return true;
+      });
+
+      if (!filtered.length) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="7">No appointments found matching this criteria.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = filtered.map(a => {
+        const badgeCls = "badge-" + (a.status || "scheduled").toLowerCase();
+        const dateStr = a.appointmentDateTime ? a.appointmentDateTime.replace("T", " ") : "—";
+        const patientName = a.patient ? a.patient.name : "Unknown";
+        const doctorName = a.doctor ? a.doctor.name : "Unknown";
+
+        // Quick status actions
+        let statusActions = "";
+        if (a.status === "Scheduled") {
+          statusActions += `<button class="btn btn-secondary btn-sm" onclick="changeStatus(${a.appointmentId}, 'Confirmed')">Confirm</button> `;
+        }
+        if (a.status === "Confirmed" || a.status === "Scheduled") {
+          statusActions += `<button class="btn btn-secondary btn-sm" style="color:var(--success);" onclick="changeStatus(${a.appointmentId}, 'Completed')">Complete</button> `;
+          statusActions += `<button class="btn btn-danger btn-sm" onclick="changeStatus(${a.appointmentId}, 'Cancelled')">Cancel</button> `;
+        }
+
+        return `
+          <tr>
+            <td><strong>#${a.appointmentId}</strong></td>
+            <td><a href="patient-history.html?patientId=${a.patient ? a.patient.patientId : ''}" style="color:var(--primary); font-weight:600; text-decoration:none;">${patientName}</a></td>
+            <td>Dr. ${doctorName}</td>
+            <td>${dateStr}</td>
+            <td>${a.reason || "—"}</td>
+            <td><span class="badge ${badgeCls}">${a.status}</span></td>
+            <td class="actions-cell">
+              ${statusActions}
+              <button class="btn btn-secondary btn-sm" onclick="openEditModal(${a.appointmentId})">Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteAppointment(${a.appointmentId})">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    async function changeStatus(id, newStatus) {
+      try {
+        await Api.patch(`/appointments/${id}/status`, { status: newStatus });
+        showToast(`Appointment marked as ${newStatus}`);
+        await loadAppointments();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    }
+
+    function openBookModal() {
+      document.getElementById("editAppointmentId").value = "";
+      document.getElementById("modalTitle").textContent = "Book New Appointment";
+      document.getElementById("appointmentForm").reset();
+      document.getElementById("modalStatus").value = "Scheduled";
+      document.getElementById("modalOverlay").classList.add("open");
+    }
+
+    function openEditModal(id) {
+      const a = allAppointments.find(item => item.appointmentId === id);
+      if (!a) return;
+      document.getElementById("editAppointmentId").value = a.appointmentId;
+      document.getElementById("modalTitle").textContent = "Edit Appointment #" + a.appointmentId;
+      document.getElementById("modalPatient").value = a.patient ? a.patient.patientId : "";
+      document.getElementById("modalDoctor").value = a.doctor ? a.doctor.doctorId : "";
+      document.getElementById("modalDateTime").value = a.appointmentDateTime ? a.appointmentDateTime.slice(0, 16) : "";
+      document.getElementById("modalReason").value = a.reason || "";
+      document.getElementById("modalStatus").value = a.status || "Scheduled";
+      document.getElementById("modalNotes").value = a.notes || "";
+      document.getElementById("modalOverlay").classList.add("open");
+    }
+
+    function closeModal() {
+      document.getElementById("modalOverlay").classList.remove("open");
+    }
+
+    async function saveAppointment(e) {
+      e.preventDefault();
+      const editId = document.getElementById("editAppointmentId").value;
+      const patientId = document.getElementById("modalPatient").value;
+      const doctorId = document.getElementById("modalDoctor").value;
+      const dt = document.getElementById("modalDateTime").value;
+      const reason = document.getElementById("modalReason").value;
+      const status = document.getElementById("modalStatus").value;
+      const notes = document.getElementById("modalNotes").value;
+
+      const payload = {
+        patient: { patientId: Number(patientId) },
+        doctor: { doctorId: Number(doctorId) },
+        appointmentDateTime: dt,
+        reason,
+        status,
+        notes
+      };
+
+      try {
+        if (editId) {
+          await Api.put(`/appointments/${editId}`, payload);
+          showToast("Appointment updated successfully");
+        } else {
+          await Api.post("/appointments", payload);
+          showToast("Appointment booked successfully");
+        }
+        closeModal();
+        await loadAppointments();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    async function deleteAppointment(id) {
+      if (!confirm("Delete this appointment?")) return;
+      try {
+        await Api.del(`/appointments/${id}`);
+        showToast("Appointment deleted");
+        await loadAppointments();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    }
+
+    loadDropdowns();
+    loadAppointments();
+  </script>
+</body>
+</html>

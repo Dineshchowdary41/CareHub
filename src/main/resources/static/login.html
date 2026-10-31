@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>CareHub — Sign In</title>
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  .login-tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border);
+  }
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    color: var(--primary);
+    border-bottom: 2px solid var(--primary);
+    margin-bottom: -2px;
+  }
+  input[type="date"] {
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <h1>Care<span style="color:#00acc1">Hub</span></h1>
+      <p class="tag">AI-Based Hospital Inventory &amp; Management System</p>
+
+      <div class="login-tabs">
+        <button id="tabStaff" class="tab-btn active">Staff Sign In</button>
+        <button id="tabPatient" class="tab-btn">Patient Sign In</button>
+      </div>
+
+      <div class="login-error" id="loginError"></div>
+
+      <!-- Staff Form -->
+      <div id="staffForm">
+        <input type="text" id="username" placeholder="Username" autocomplete="username" />
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password" />
+        <button id="loginBtn">Sign In</button>
+        <p class="login-hint">
+          Default admin login: <b>admin</b> / <b>Admin@123</b> (change immediately after first sign-in).<br/>
+          Other staff accounts are created by an Admin from the Users page.
+        </p>
+      </div>
+
+      <!-- Patient Form -->
+      <div id="patientForm" style="display:none;">
+        <input type="text" id="phone" placeholder="Registered Phone No" autocomplete="tel" />
+        <input type="date" id="dob" placeholder="Date of Birth" />
+        <button id="patientLoginBtn">Patient Sign In</button>
+        <p class="login-hint">
+          Access your health records, prescriptions, and billing receipts.<br/>
+          Use the phone number and Date of Birth registered during your visit.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    // If already logged in, skip straight to the dashboard.
+    const currentUserObj = currentUser();
+    if (currentUserObj) {
+      window.location.href = currentUserObj.role === "Patient" ? "patient-dashboard.html" : "dashboard.html";
+    }
+
+    const tabStaff = document.getElementById("tabStaff");
+    const tabPatient = document.getElementById("tabPatient");
+    const staffForm = document.getElementById("staffForm");
+    const patientForm = document.getElementById("patientForm");
+    const errBox = document.getElementById("loginError");
+
+    tabStaff.addEventListener("click", () => {
+      tabStaff.classList.add("active");
+      tabPatient.classList.remove("active");
+      staffForm.style.display = "block";
+      patientForm.style.display = "none";
+      errBox.textContent = "";
+    });
+
+    tabPatient.addEventListener("click", () => {
+      tabPatient.classList.add("active");
+      tabStaff.classList.remove("active");
+      staffForm.style.display = "none";
+      patientForm.style.display = "block";
+      errBox.textContent = "";
+    });
+
+    document.getElementById("loginBtn").addEventListener("click", loginStaff);
+    document.getElementById("password").addEventListener("keydown", e => {
+      if (e.key === "Enter") loginStaff();
+    });
+
+    document.getElementById("patientLoginBtn").addEventListener("click", loginPatient);
+    document.getElementById("dob").addEventListener("keydown", e => {
+      if (e.key === "Enter") loginPatient();
+    });
+
+    async function loginStaff() {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      errBox.textContent = "";
+
+      if (!username || !password) {
+        errBox.textContent = "Please enter both username and password.";
+        return;
+      }
+
+      try {
+        const user = await Api.post("/auth/login", { username, password });
+        saveSession(user);
+        window.location.href = "dashboard.html";
+      } catch (e) {
+        errBox.textContent = e.message || "Login failed.";
+      }
+    }
+
+    async function loginPatient() {
+      const phone = document.getElementById("phone").value.trim();
+      const dob = document.getElementById("dob").value;
+      errBox.textContent = "";
+
+      if (!phone || !dob) {
+        errBox.textContent = "Please enter both registered phone number and Date of Birth.";
+        return;
+      }
+
+      try {
+        const user = await Api.post("/auth/patient-login", { phone, dob });
+        saveSession(user);
+        window.location.href = "patient-dashboard.html";
+      } catch (e) {
+        errBox.textContent = e.message || "Patient login failed.";
+      }
+    }
+  </script>
+</body>
+</html>

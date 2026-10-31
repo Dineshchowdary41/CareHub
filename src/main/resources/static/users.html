@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Users — CareHub</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div><h2 id="pageTitle"></h2><p id="pageSubtitle"></p></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <input class="search-box" id="searchInput" placeholder="Search users..." />
+          <button class="btn btn-primary" id="addBtn">+ Add User</button>
+        </div>
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"><tr class="empty-row"><td>Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 id="modalTitle"></h3>
+      <div id="modalForm"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/crud.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("users");
+
+    function showToast(message, isError) {
+      const t = document.getElementById("toast");
+      t.textContent = message;
+      t.className = "toast show" + (isError ? " error" : "");
+      setTimeout(() => { t.className = "toast"; }, 2600);
+    }
+
+    CRUD.init({
+      title: "Users",
+      subtitle: "Staff login accounts and role-based access",
+      endpoint: "/users",
+      idField: "userId",
+      columns: [
+        { key: "username", label: "Username" },
+        { key: "role", label: "Role", render: r => `<span class="badge badge-blue">${r.role}</span>` },
+        { key: "isActive", label: "Status", render: r => r.isActive
+            ? `<span class="badge badge-green">Active</span>`
+            : `<span class="badge badge-red">Deactivated</span>` },
+        { key: "createdAt", label: "Created At", render: r => r.createdAt ? r.createdAt.replace("T"," ").substring(0,16) : "" },
+      ],
+      searchKeys: ["username", "role"],
+      fields: [
+        { name: "username", label: "Username", type: "text", required: true },
+        { name: "passwordHash", label: "Password", type: "password", required: true, createOnly: true },
+        { name: "role", label: "Role", type: "select", required: true,
+          options: ["Admin", "Doctor", "Pharmacist", "Receptionist"] },
+      ],
+      rowActions: [
+        {
+          label: "Reset Password",
+          className: "btn-secondary",
+          handler: async r => {
+            const pwd = prompt(`New password for "${r.username}":`);
+            if (!pwd) return;
+            await Api.patch(`/users/${r.userId}/reset-password`, { newPassword: pwd });
+            showToast("Password reset");
+          }
+        },
+        {
+          label: r => r.isActive ? "Deactivate" : "Activate",
+          className: r => r.isActive ? "btn-danger" : "btn-primary",
+          handler: async r => {
+            await Api.patch(`/users/${r.userId}/${r.isActive ? "deactivate" : "activate"}`);
+          }
+        },
+      ],
+    });
+  </script>
+</body>
+</html>

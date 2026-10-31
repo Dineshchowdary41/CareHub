@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Suppliers — CareHub</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div><h2 id="pageTitle"></h2><p id="pageSubtitle"></p></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <input class="search-box" id="searchInput" placeholder="Search suppliers..." />
+          <button class="btn btn-primary" id="addBtn">+ Add Supplier</button>
+        </div>
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"><tr class="empty-row"><td>Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 id="modalTitle"></h3>
+      <div id="modalForm"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/crud.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("suppliers");
+
+    function showToast(message, isError) {
+      const t = document.getElementById("toast");
+      t.textContent = message;
+      t.className = "toast show" + (isError ? " error" : "");
+      setTimeout(() => { t.className = "toast"; }, 2600);
+    }
+
+    CRUD.init({
+      title: "Suppliers",
+      subtitle: "Vendors who supply medicines to the hospital",
+      endpoint: "/suppliers",
+      idField: "supplierId",
+      columns: [
+        { key: "supplierName", label: "Supplier Name" },
+        { key: "phone", label: "Phone" },
+        { key: "email", label: "Email" },
+        { key: "address", label: "Address" },
+      ],
+      searchKeys: ["supplierName", "phone", "email"],
+      fields: [
+        { name: "supplierName", label: "Supplier Name", type: "text", required: true },
+        { name: "phone", label: "Phone", type: "text" },
+        { name: "email", label: "Email", type: "text" },
+        { name: "address", label: "Address", type: "textarea" },
+      ],
+      rowActions: [
+        {
+          label: "Notify (Low Stock Email)",
+          className: "btn-secondary",
+          handler: async supplier => {
+            const inv = await Api.get(`/inventory`);
+            const batches = inv.filter(i => i.supplier && i.supplier.supplierId === supplier.supplierId);
+            if (!batches.length) { showToast("This supplier has no inventory batches on file.", true); return; }
+            const list = batches.map((b, i) => `${i + 1}. ${b.medicine ? b.medicine.medicineName : "?"} (batch ${b.batchNo}, stock ${b.availableStock})`).join("\n");
+            const pick = prompt(`Send restock email for which batch?\n${list}`, "1");
+            const idx = Number(pick) - 1;
+            if (!batches[idx]) return;
+            const res = await Api.post(`/suppliers/${supplier.supplierId}/notify/${batches[idx].inventoryId}`);
+            showToast(res.message, !res.sent);
+          }
+        },
+      ],
+    });
+  </script>
+</body>
+</html>

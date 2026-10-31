@@ -1,0 +1,24 @@
+{
+  "model_name": "NLP-ClinicalRegexNER-v1",
+  "task": "Prescription Clinical Text Understanding & Entity Extraction",
+  "evaluated_at": "2026-10-30T18:54:20.560028",
+  "total_test_cases": 10,
+  "evaluation_metrics": {
+    "overall_accuracy": 1.0,
+    "medicine_entity_accuracy": 1.0,
+    "medicine_precision": 1.0,
+    "medicine_recall": 1.0,
+    "medicine_f1_score": 1.0,
+    "dosage_extraction_accuracy": 1.0,
+    "frequency_extraction_accuracy": 1.0,
+    "duration_extraction_accuracy": 1.0
+  },
+  "pipeline_stages": [
+    "1. Text Cleaning & Header Filtering",
+    "2. Line Tokenization",
+    "3. Normalization & Canonical Sig Translation",
+    "4. Catalog Vocabulary & Levenshtein Matching",
+    "5. Dosage & Quantity Arithmetic Extraction",
+    "6. Structured JSON Transformation"
+  ]
+}

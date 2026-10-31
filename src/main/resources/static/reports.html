@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Reports — CareHub</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>Reports</h2>
+          <p>Generate PDF or Excel reports for inventory, patients, doctors, and revenue</p>
+        </div>
+      </div>
+
+      <div class="report-grid">
+        <div class="report-card">
+          <h4>Inventory Report</h4>
+          <p>Every batch on hand — medicine, supplier, expiry, stock levels.</p>
+          <div class="report-actions">
+            <button class="btn btn-primary btn-sm" onclick="download('/reports/inventory/pdf', 'carehub-inventory-report.pdf')">Download PDF</button>
+            <button class="btn btn-secondary btn-sm" onclick="download('/reports/inventory/excel', 'carehub-inventory-report.xlsx')">Download Excel</button>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <h4>Patient Report</h4>
+          <p>Registered patients with contact details and blood group.</p>
+          <div class="report-actions">
+            <button class="btn btn-primary btn-sm" onclick="download('/reports/patients/pdf', 'carehub-patients-report.pdf')">Download PDF</button>
+            <button class="btn btn-secondary btn-sm" onclick="download('/reports/patients/excel', 'carehub-patients-report.xlsx')">Download Excel</button>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <h4>Doctor Report</h4>
+          <p>Doctor roster with specialization and contact information.</p>
+          <div class="report-actions">
+            <button class="btn btn-primary btn-sm" onclick="download('/reports/doctors/pdf', 'carehub-doctors-report.pdf')">Download PDF</button>
+            <button class="btn btn-secondary btn-sm" onclick="download('/reports/doctors/excel', 'carehub-doctors-report.xlsx')">Download Excel</button>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <h4>Revenue / Billing Report</h4>
+          <p>All bills with amount, payment status, and date.</p>
+          <div class="report-actions">
+            <button class="btn btn-primary btn-sm" onclick="download('/reports/revenue/pdf', 'carehub-revenue-report.pdf')">Download PDF</button>
+            <button class="btn btn-secondary btn-sm" onclick="download('/reports/revenue/excel', 'carehub-revenue-report.xlsx')">Download Excel</button>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <h4>Appointments Report</h4>
+          <p>Schedule of consultations, patient visits, doctor allocations, and completion status.</p>
+          <div class="report-actions">
+            <button class="btn btn-primary btn-sm" onclick="download('/reports/appointments/pdf', 'carehub-appointments-report.pdf')">Download PDF</button>
+            <button class="btn btn-secondary btn-sm" onclick="download('/reports/appointments/excel', 'carehub-appointments-report.xlsx')">Download Excel</button>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <h4>AI Demand Prediction Report</h4>
+          <p>Statistical consumption forecast, monthly trend slopes, and safety stock recommendations.</p>
+          <div class="report-actions">
+            <button class="btn btn-primary btn-sm" onclick="download('/reports/ai-demand/pdf', 'carehub-ai-demand-report.pdf')">Download PDF</button>
+            <button class="btn btn-secondary btn-sm" onclick="download('/reports/ai-demand/excel', 'carehub-ai-demand-report.xlsx')">Download Excel</button>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <h4>AI Reorder Recommendations Report</h4>
+          <p>Critical stock replenishment proposals, supplier linkages, and lead-time analysis.</p>
+          <div class="report-actions">
+            <button class="btn btn-primary btn-sm" onclick="download('/reports/ai-reorder/pdf', 'carehub-ai-reorder-report.pdf')">Download PDF</button>
+            <button class="btn btn-secondary btn-sm" onclick="download('/reports/ai-reorder/excel', 'carehub-ai-reorder-report.xlsx')">Download Excel</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("reports");
+
+    function showToast(message, isError) {
+      const t = document.getElementById("toast");
+      t.textContent = message;
+      t.className = "toast show" + (isError ? " error" : "");
+      setTimeout(() => { t.className = "toast"; }, 2600);
+    }
+
+    async function download(path, filename) {
+      try {
+        await Api.download(path, filename);
+        showToast("Report downloaded");
+      } catch (e) {
+        showToast(e.message || "Could not generate report", true);
+      }
+    }
+  </script>
+</body>
+</html>

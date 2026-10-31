@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Inventory — CareHub</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div><h2 id="pageTitle"></h2><p id="pageSubtitle"></p></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <input class="search-box" id="searchInput" placeholder="Search inventory..." />
+          <button class="btn btn-primary" id="addBtn">+ Add Batch</button>
+        </div>
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"><tr class="empty-row"><td>Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 id="modalTitle"></h3>
+      <div id="modalForm"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/crud.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("inventory");
+
+    CRUD.init({
+      title: "Inventory",
+      subtitle: "Batch-level stock, pricing, and supplier tracking",
+      endpoint: "/inventory",
+      idField: "inventoryId",
+      columns: [
+        { key: "medicine", label: "Medicine", render: r => r.medicine ? r.medicine.medicineName : "—" },
+        { key: "supplier", label: "Supplier", render: r => r.supplier ? r.supplier.supplierName : "—" },
+        { key: "batchNo", label: "Batch No" },
+        { key: "expiryDate", label: "Expiry Date" },
+        { key: "unitPrice", label: "Unit Price", render: r => r.unitPrice !== null ? "₹" + r.unitPrice.toFixed(2) : "—" },
+        { key: "availableStock", label: "Available Stock",
+          render: r => `<span class="badge ${r.availableStock <= r.minimumStock ? 'badge-red' : 'badge-green'}">${r.availableStock}</span>` },
+        { key: "minimumStock", label: "Minimum Stock" },
+      ],
+      searchKeys: ["batchNo"],
+      fields: [
+        { name: "medicine", label: "Medicine", type: "fk", required: true,
+          fkEndpoint: "/medicines", fkIdField: "medicineId", fkLabel: m => m.medicineName },
+        { name: "supplier", label: "Supplier", type: "fk", required: false,
+          fkEndpoint: "/suppliers", fkIdField: "supplierId", fkLabel: s => s.supplierName },
+        { name: "batchNo", label: "Batch No", type: "text", required: true },
+        { name: "expiryDate", label: "Expiry Date", type: "date", required: true },
+        { name: "unitPrice", label: "Unit Price", type: "number", required: true },
+        { name: "availableStock", label: "Available Stock", type: "number", required: true, default: 0 },
+        { name: "minimumStock", label: "Minimum Stock", type: "number", required: true, default: 0 },
+      ],
+    });
+  </script>
+</body>
+</html>

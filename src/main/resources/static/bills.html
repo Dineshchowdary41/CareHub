@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Bills — CareHub</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div><h2 id="pageTitle"></h2><p id="pageSubtitle"></p></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <input class="search-box" id="searchInput" placeholder="Search bills..." />
+          <button class="btn btn-primary" id="addBtn">+ Add Bill</button>
+        </div>
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"><tr class="empty-row"><td>Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 id="modalTitle"></h3>
+      <div id="modalForm"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/crud.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("bills");
+
+    function statusBadge(status) {
+      const cls = status === "Paid" ? "badge-green" : status === "Pending" ? "badge-red" : "badge-orange";
+      return `<span class="badge ${cls}">${status}</span>`;
+    }
+
+    CRUD.init({
+      title: "Bills",
+      subtitle: "Patient invoices and payment records",
+      endpoint: "/bills",
+      idField: "billId",
+      columns: [
+        { key: "patient", label: "Patient", render: r => r.patient ? r.patient.name : "—" },
+        { key: "totalAmount", label: "Total Amount", render: r => r.totalAmount !== null ? "₹" + r.totalAmount.toFixed(2) : "—" },
+        { key: "paymentStatus", label: "Status", render: r => statusBadge(r.paymentStatus) },
+        { key: "billDate", label: "Bill Date", render: r => r.billDate ? r.billDate.replace("T"," ").substring(0,16) : "" },
+      ],
+      searchKeys: ["paymentStatus"],
+      fields: [
+        { name: "patient", label: "Patient", type: "fk", required: true,
+          fkEndpoint: "/patients", fkIdField: "patientId", fkLabel: p => p.name },
+        { name: "totalAmount", label: "Total Amount", type: "number", required: true },
+        { name: "paymentStatus", label: "Payment Status", type: "select", required: true,
+          options: ["Paid", "Pending", "Partial"] },
+      ],
+    });
+  </script>
+</body>
+</html>

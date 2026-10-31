@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Activity & Audit Log — CareHub 3.0</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>Activity & Audit Log</h2>
+          <p>Immutable forensic record of clinical entries, dispensing events, user logins, and administrative actions</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header" style="flex-wrap:wrap; gap:12px;">
+          <input class="search-box" id="userSearch" placeholder="Search by username..." oninput="filterLogs()" style="max-width:240px;" />
+          
+          <select id="moduleFilter" onchange="filterLogs()" style="max-width:180px;">
+            <option value="ALL">All Modules</option>
+            <option value="Auth">Auth / Login</option>
+            <option value="Medicine">Medicines</option>
+            <option value="Inventory">Inventory</option>
+            <option value="Patient">Patients</option>
+            <option value="Appointment">Appointments</option>
+            <option value="Prescription">Prescriptions</option>
+            <option value="MedicalHistory">Medical History</option>
+            <option value="OCR">Prescription OCR</option>
+            <option value="AI">AI Engine</option>
+          </select>
+
+          <select id="actionFilter" onchange="filterLogs()" style="max-width:180px;">
+            <option value="ALL">All Actions</option>
+            <option value="LOGIN">LOGIN</option>
+            <option value="LOGOUT">LOGOUT</option>
+            <option value="CREATE">CREATE</option>
+            <option value="UPDATE">UPDATE</option>
+            <option value="DELETE">DELETE</option>
+            <option value="DISPENSE">DISPENSE</option>
+            <option value="OCR_SCAN">OCR_SCAN</option>
+          </select>
+
+          <button class="btn btn-secondary btn-sm" onclick="loadLogs()">↻ Refresh</button>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>User</th>
+              <th>Role</th>
+              <th>Action</th>
+              <th>Module</th>
+              <th>Description</th>
+              <th>Ref ID</th>
+            </tr>
+          </thead>
+          <tbody id="logsBody">
+            <tr class="empty-row"><td colspan="7">Loading audit trail...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    const user = requireAuth();
+    renderSidebar("audit-logs");
+
+    let allLogs = [];
+
+    function showToast(msg, isError) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.className = "toast show" + (isError ? " error" : "");
+      setTimeout(() => { t.className = "toast"; }, 2800);
+    }
+
+    async function loadLogs() {
+      const body = document.getElementById("logsBody");
+      try {
+        allLogs = await Api.get("/audit-logs");
+        filterLogs();
+      } catch (e) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="7">Error loading audit logs: ${e.message}</td></tr>`;
+      }
+    }
+
+    function filterLogs() {
+      const userQ = (document.getElementById("userSearch").value || "").toLowerCase().trim();
+      const mod = document.getElementById("moduleFilter").value;
+      const act = document.getElementById("actionFilter").value;
+      const body = document.getElementById("logsBody");
+
+      const filtered = allLogs.filter(log => {
+        if (mod !== "ALL" && log.module !== mod) return false;
+        if (act !== "ALL" && log.action !== act) return false;
+        if (userQ && (!log.username || !log.username.toLowerCase().includes(userQ))) return false;
+        return true;
+      });
+
+      if (!filtered.length) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="7">No audit logs matching criteria.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = filtered.map(log => {
+        let actionBadge = "pill-pending";
+        if (log.action === "CREATE" || log.action === "LOGIN") actionBadge = "pill-approved";
+        else if (log.action === "DELETE") actionBadge = "pill-rejected";
+
+        const timeStr = log.timestamp ? log.timestamp.replace("T", " ").slice(0, 19) : "—";
+
+        return `
+          <tr>
+            <td style="font-family:monospace; font-size:12px;">${timeStr}</td>
+            <td><strong>${log.username || 'System'}</strong></td>
+            <td><span class="badge badge-scheduled">${log.userRole || 'User'}</span></td>
+            <td><span class="pill ${actionBadge}">${log.action}</span></td>
+            <td><strong>${log.module}</strong></td>
+            <td>${log.description || '—'}</td>
+            <td>${log.entityId ? '#' + log.entityId : '—'}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    loadLogs();
+  </script>
+</body>
+</html>

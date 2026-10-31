@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Patient Medical History — CareHub 3.0</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>Patient Medical History</h2>
+          <p>Longitudinal health records, clinical diagnoses, prescriptions, appointments, and billing</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header" style="justify-content: flex-start; gap: 14px;">
+          <label style="font-weight:600;">Select Patient:</label>
+          <select id="patientSelect" style="max-width: 380px;" onchange="onPatientSelected(this.value)">
+            <option value="">-- Choose patient --</option>
+          </select>
+          <button class="btn btn-primary" id="addDiagnosisBtn" style="display:none;" onclick="openDiagnosisModal()">+ Record New Diagnosis</button>
+        </div>
+      </div>
+
+      <div id="historyContainer" style="display:none;">
+        <!-- Patient Profile Header -->
+        <div class="patient-profile-header">
+          <div>
+            <h3 id="patientName" style="margin:0 0 6px; font-size:22px; color:var(--primary);"></h3>
+            <p style="margin:0; color:var(--muted); font-size:13px;" id="patientMeta"></p>
+          </div>
+          <div class="patient-info-list">
+            <div class="patient-info-item">
+              <span class="lbl">Age</span>
+              <span class="val" id="patientAge">-</span>
+            </div>
+            <div class="patient-info-item">
+              <span class="lbl">Blood Group</span>
+              <span class="val" id="patientBlood">-</span>
+            </div>
+            <div class="patient-info-item">
+              <span class="lbl">Phone</span>
+              <span class="val" id="patientPhone">-</span>
+            </div>
+            <div class="patient-info-item">
+              <span class="lbl">Pending Balance</span>
+              <span class="val" id="patientBalance" style="color:var(--danger);">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- History Tabs -->
+        <div class="filter-pills" id="historyTabs" style="margin-bottom:16px;">
+          <button class="filter-pill active" onclick="switchTab('visits')">Visits & Diagnoses (<span id="countVisits">0</span>)</button>
+          <button class="filter-pill" onclick="switchTab('rx')">Prescriptions (<span id="countRx">0</span>)</button>
+          <button class="filter-pill" onclick="switchTab('apts')">Appointments (<span id="countApts">0</span>)</button>
+          <button class="filter-pill" onclick="switchTab('bills')">Billing & Invoices (<span id="countBills">0</span>)</button>
+        </div>
+
+        <!-- Tab 1: Clinical Visits -->
+        <div id="tabVisits" class="tab-pane">
+          <div id="visitsList"></div>
+        </div>
+
+        <!-- Tab 2: Prescriptions -->
+        <div id="tabRx" class="tab-pane" style="display:none;">
+          <div id="rxList"></div>
+        </div>
+
+        <!-- Tab 3: Appointments -->
+        <div id="tabApts" class="tab-pane" style="display:none;">
+          <div class="card">
+            <table>
+              <thead>
+                <tr><th>Date</th><th>Doctor</th><th>Reason</th><th>Status</th><th>Notes</th></tr>
+              </thead>
+              <tbody id="aptsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 4: Billing -->
+        <div id="tabBills" class="tab-pane" style="display:none;">
+          <div class="card">
+            <table>
+              <thead>
+                <tr><th>Bill #</th><th>Date</th><th>Amount</th><th>Status</th></tr>
+              </thead>
+              <tbody id="billsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="emptyPrompt" class="card" style="text-align:center; padding: 40px;">
+        <p class="hint-text">Select a patient above to view their consolidated medical history.</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- New Diagnosis Modal -->
+  <div class="modal-overlay" id="diagnosisModal">
+    <div class="modal">
+      <h3>Record Medical Diagnosis</h3>
+      <form id="diagnosisForm" onsubmit="saveDiagnosis(event)">
+        <div class="form-group">
+          <label>Consulting Doctor</label>
+          <select id="diagDoctor">
+            <option value="">-- select doctor (optional) --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Visit Date *</label>
+          <input type="date" id="diagDate" required />
+        </div>
+        <div class="form-group">
+          <label>Diagnosis *</label>
+          <input type="text" id="diagTitle" placeholder="e.g. Acute Bronchitis, Type 2 Diabetes" required />
+        </div>
+        <div class="form-group">
+          <label>Symptoms Reported</label>
+          <textarea id="diagSymptoms" placeholder="Fever, cough, body pain..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Treatment Plan / Advice</label>
+          <textarea id="diagTreatment" placeholder="Medication schedule, lifestyle changes..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Clinical Notes</label>
+          <textarea id="diagNotes" placeholder="Follow-up in 2 weeks, review blood reports..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeDiagnosisModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Diagnosis</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    const user = requireAuth();
+    renderSidebar("patient-history");
+
+    let currentPatientId = null;
+    let doctorsCache = [];
+
+    function showToast(msg, isError) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.className = "toast show" + (isError ? " error" : "");
+      setTimeout(() => { t.className = "toast"; }, 2800);
+    }
+
+    async function initPage() {
+      try {
+        const patients = await Api.get("/patients");
+        const sel = document.getElementById("patientSelect");
+        sel.innerHTML = '<option value="">-- Choose patient --</option>' +
+          patients.map(p => `<option value="${p.patientId}">${p.name} (Phone: ${p.phone || 'N/A'})</option>`).join("");
+
+        doctorsCache = await Api.get("/doctors");
+        const docSel = document.getElementById("diagDoctor");
+        docSel.innerHTML = '<option value="">-- select doctor --</option>' +
+          doctorsCache.map(d => `<option value="${d.doctorId}">Dr. ${d.name} (${d.specialization || 'General'})</option>`).join("");
+
+        // Check if query param ?patientId=X is present
+        const params = new URLSearchParams(window.location.search);
+        const qpId = params.get("patientId");
+        if (qpId) {
+          sel.value = qpId;
+          onPatientSelected(qpId);
+        }
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    }
+
+    async function onPatientSelected(patientId) {
+      if (!patientId) {
+        document.getElementById("historyContainer").style.display = "none";
+        document.getElementById("emptyPrompt").style.display = "block";
+        document.getElementById("addDiagnosisBtn").style.display = "none";
+        currentPatientId = null;
+        return;
+      }
+
+      currentPatientId = patientId;
+      document.getElementById("emptyPrompt").style.display = "none";
+      document.getElementById("historyContainer").style.display = "block";
+      document.getElementById("addDiagnosisBtn").style.display = "inline-block";
+
+      await loadHistoryData(patientId);
+    }
+
+    async function loadHistoryData(patientId) {
+      try {
+        const history = await Api.get(`/patients/${patientId}/history`);
+        const p = history.patient;
+
+        document.getElementById("patientName").textContent = p.name;
+        document.getElementById("patientMeta").textContent = `Address: ${p.address || '—'} · DOB: ${p.dateOfBirth} · Registered: ${p.createdAt}`;
+        document.getElementById("patientAge").textContent = history.age ? history.age + " yrs" : "—";
+        document.getElementById("patientBlood").textContent = p.bloodGroup || "—";
+        document.getElementById("patientPhone").textContent = p.phone || "—";
+        document.getElementById("patientBalance").textContent = "₹" + Number(history.pendingBilled || 0).toLocaleString("en-IN");
+
+        document.getElementById("countVisits").textContent = (history.visits || []).length;
+        document.getElementById("countRx").textContent = (history.prescriptions || []).length;
+        document.getElementById("countApts").textContent = (history.appointments || []).length;
+        document.getElementById("countBills").textContent = (history.bills || []).length;
+
+        // Render Visits
+        const vList = document.getElementById("visitsList");
+        if (!history.visits || !history.visits.length) {
+          vList.innerHTML = `<div class="card"><p class="hint-text">No clinical visits or diagnoses recorded yet.</p></div>`;
+        } else {
+          vList.innerHTML = history.visits.map(v => `
+            <div class="history-card">
+              <div class="history-card-header">
+                <h4>${v.diagnosis}</h4>
+                <span class="pill pill-pending">${v.visitDate}</span>
+              </div>
+              <div style="font-size:13px; margin-bottom:8px;">
+                <strong>Consulting Doctor:</strong> ${v.doctor ? 'Dr. ' + v.doctor.name : 'Attending Physician'}
+              </div>
+              ${v.symptoms ? `<div style="font-size:13px; margin-bottom:4px;"><strong>Symptoms:</strong> ${v.symptoms}</div>` : ''}
+              ${v.treatmentPlan ? `<div style="font-size:13px; margin-bottom:4px;"><strong>Treatment Plan:</strong> ${v.treatmentPlan}</div>` : ''}
+              ${v.notes ? `<div style="font-size:13px; color:var(--muted);"><strong>Clinical Notes:</strong> ${v.notes}</div>` : ''}
+            </div>
+          `).join("");
+        }
+
+        // Render Prescriptions
+        const rList = document.getElementById("rxList");
+        if (!history.prescriptions || !history.prescriptions.length) {
+          rList.innerHTML = `<div class="card"><p class="hint-text">No prescriptions found for this patient.</p></div>`;
+        } else {
+          rList.innerHTML = history.prescriptions.map(rx => `
+            <div class="history-card">
+              <div class="history-card-header">
+                <h4>Prescription #${rx.prescriptionId}</h4>
+                <span class="pill pill-approved">${rx.prescriptionDate}</span>
+              </div>
+              <div style="font-size:13px; margin-bottom:10px;">
+                <strong>Prescribed by:</strong> Dr. ${rx.doctorName} (${rx.doctorSpecialization || 'General'})
+                ${rx.notes ? ` &middot; <em>${rx.notes}</em>` : ''}
+              </div>
+              <table>
+                <thead>
+                  <tr><th>Medicine</th><th>Category</th><th>Dosage</th><th>Frequency</th><th>Duration</th><th>Qty</th></tr>
+                </thead>
+                <tbody>
+                  ${(rx.items || []).map(it => `
+                    <tr>
+                      <td><strong>${it.medicineName}</strong></td>
+                      <td>${it.category}</td>
+                      <td>${it.dosage || '—'}</td>
+                      <td>${it.frequency || '—'}</td>
+                      <td>${it.duration || '—'}</td>
+                      <td>${it.quantity || '—'}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+          `).join("");
+        }
+
+        // Render Appointments
+        const aptsBody = document.getElementById("aptsTableBody");
+        if (!history.appointments || !history.appointments.length) {
+          aptsBody.innerHTML = `<tr class="empty-row"><td colspan="5">No appointments recorded.</td></tr>`;
+        } else {
+          aptsBody.innerHTML = history.appointments.map(a => `
+            <tr>
+              <td>${a.appointmentDateTime ? a.appointmentDateTime.replace("T", " ") : '—'}</td>
+              <td>Dr. ${a.doctor ? a.doctor.name : '—'}</td>
+              <td>${a.reason || '—'}</td>
+              <td><span class="badge badge-${(a.status || 'scheduled').toLowerCase()}">${a.status}</span></td>
+              <td>${a.notes || '—'}</td>
+            </tr>
+          `).join("");
+        }
+
+        // Render Bills
+        const billsBody = document.getElementById("billsTableBody");
+        if (!history.bills || !history.bills.length) {
+          billsBody.innerHTML = `<tr class="empty-row"><td colspan="4">No bills recorded.</td></tr>`;
+        } else {
+          billsBody.innerHTML = history.bills.map(b => `
+            <tr>
+              <td>#${b.billId}</td>
+              <td>${b.billDate ? b.billDate.slice(0, 10) : '—'}</td>
+              <td><strong>₹${Number(b.totalAmount || 0).toLocaleString("en-IN")}</strong></td>
+              <td><span class="badge ${b.paymentStatus === 'Paid' ? 'badge-low' : 'badge-critical'}">${b.paymentStatus}</span></td>
+            </tr>
+          `).join("");
+        }
+      } catch (e) {
+        showToast("Error loading medical history: " + e.message, true);
+      }
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll("#historyTabs .filter-pill").forEach(p => p.classList.remove("active"));
+      event.target.classList.add("active");
+
+      document.getElementById("tabVisits").style.display = tab === "visits" ? "block" : "none";
+      document.getElementById("tabRx").style.display = tab === "rx" ? "block" : "none";
+      document.getElementById("tabApts").style.display = tab === "apts" ? "block" : "none";
+      document.getElementById("tabBills").style.display = tab === "bills" ? "block" : "none";
+    }
+
+    function openDiagnosisModal() {
+      document.getElementById("diagnosisForm").reset();
+      document.getElementById("diagDate").value = new Date().toISOString().slice(0, 10);
+      document.getElementById("diagnosisModal").classList.add("open");
+    }
+
+    function closeDiagnosisModal() {
+      document.getElementById("diagnosisModal").classList.remove("open");
+    }
+
+    async function saveDiagnosis(e) {
+      e.preventDefault();
+      if (!currentPatientId) return;
+
+      const docId = document.getElementById("diagDoctor").value;
+      const payload = {
+        doctor: docId ? { doctorId: Number(docId) } : null,
+        visitDate: document.getElementById("diagDate").value,
+        diagnosis: document.getElementById("diagTitle").value,
+        symptoms: document.getElementById("diagSymptoms").value,
+        treatmentPlan: document.getElementById("diagTreatment").value,
+        notes: document.getElementById("diagNotes").value
+      };
+
+      try {
+        await Api.post(`/patients/${currentPatientId}/history`, payload);
+        showToast("Clinical diagnosis recorded successfully");
+        closeDiagnosisModal();
+        await loadHistoryData(currentPatientId);
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    initPage();
+  </script>
+</body>
+</html>

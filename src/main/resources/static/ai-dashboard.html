@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>AI Insights & Demand Prediction — CareHub 3.0</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>AI Intelligence & Inventory Forecasting</h2>
+          <p>Powered by LSTM Time-Series Forecasting, CNN Prescription Image Classification, and NLP Clinical Entity Extraction</p>
+        </div>
+        <div class="topbar-actions">
+          <a href="/api/reports/ai-demand/pdf" target="_blank" class="btn btn-secondary btn-sm">Export Demand PDF</a>
+          <a href="/api/reports/ai-reorder/pdf" target="_blank" class="btn btn-secondary btn-sm">Export Reorder PDF</a>
+        </div>
+      </div>
+
+      <!-- AI Technologies Architecture & Evaluation Metrics (Modules 11 & 12) -->
+      <div class="card" style="margin-bottom: 24px; background: linear-gradient(135deg, rgba(13,71,161,0.04) 0%, rgba(2,136,209,0.06) 100%); border: 1px solid rgba(13,71,161,0.18);">
+        <div class="card-header" style="justify-content:space-between;">
+          <div>
+            <h3 style="color:var(--primary); font-size:17px;">🤖 Active AI Neural Networks &amp; Evaluation Metrics</h3>
+            <p class="hint-text" style="margin:2px 0 0;">Real-time evaluation metrics, parameters, and architectures across the 3 CareHub AI technologies</p>
+          </div>
+          <span class="pill pill-approved" id="aiGlobalStatusBadge">AI Engine Active</span>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:14px;">
+          <!-- LSTM Card -->
+          <div style="background:#fff; padding:16px; border-radius:8px; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="color:var(--primary); font-size:14px;">1. LSTM — Time-Series Forecaster</strong>
+              <span class="badge badge-low" id="lstmBadge">ACTIVE</span>
+            </div>
+            <div style="font-size:12px; color:var(--muted); margin:6px 0;">Model: <strong id="lstmModelId">LSTM-DemandNet-v1</strong></div>
+            <p style="font-size:12px; margin:0 0 10px; color:#444;">Stacked LSTM (64 $\rightarrow$ 32) predicting multi-horizon (7-day and 30-day) consumption from 14-day sliding lookback sequences.</p>
+            <div style="display:flex; justify-content:space-between; font-size:12px; background:var(--bg); padding:8px; border-radius:6px;">
+              <div><strong>7d MAE:</strong> <span id="lstmMae7">39.26</span></div>
+              <div><strong>30d MAE:</strong> <span id="lstmMae30">172.80</span></div>
+              <div><strong>MAPE:</strong> <span id="lstmMape">30.2%</span></div>
+            </div>
+          </div>
+
+          <!-- CNN Card -->
+          <div style="background:#fff; padding:16px; border-radius:8px; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="color:var(--primary); font-size:14px;">2. CNN — Prescription Image Classifier</strong>
+              <span class="badge badge-low" id="cnnBadge">ACTIVE</span>
+            </div>
+            <div style="font-size:12px; color:var(--muted); margin:6px 0;">Model: <strong id="cnnModelId">CNN-PrescriptionNet-v1</strong></div>
+            <p style="font-size:12px; margin:0 0 10px; color:#444;">Deep Conv2D network (32-64-64 filters) inspecting 128x128x3 prescriptions for quality (sharpness/blur) and document type.</p>
+            <div style="display:flex; justify-content:space-between; font-size:12px; background:var(--bg); padding:8px; border-radius:6px;">
+              <div><strong>Accuracy:</strong> <span id="cnnAcc">67.5%</span></div>
+              <div><strong>Precision:</strong> <span id="cnnPrec">56.7%</span></div>
+              <div><strong>F1-Score:</strong> <span id="cnnF1">59.0%</span></div>
+            </div>
+          </div>
+
+          <!-- NLP Card -->
+          <div style="background:#fff; padding:16px; border-radius:8px; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="color:var(--primary); font-size:14px;">3. NLP — Clinical Entity Recognizer</strong>
+              <span class="badge badge-low" id="nlpBadge">ACTIVE</span>
+            </div>
+            <div style="font-size:12px; color:var(--muted); margin:6px 0;">Model: <strong id="nlpModelId">NLP-ClinicalRegexNER-v1</strong></div>
+            <p style="font-size:12px; margin:0 0 10px; color:#444;">Clinical NLP pipeline tokenizing text and extracting Medicine, Dosage (mg/ml), Frequency (OD/BD/TID) &amp; Duration.</p>
+            <div style="display:flex; justify-content:space-between; font-size:12px; background:var(--bg); padding:8px; border-radius:6px;">
+              <div><strong>Accuracy:</strong> <span id="nlpAcc">100%</span></div>
+              <div><strong>Precision:</strong> <span id="nlpPrec">100%</span></div>
+              <div><strong>F1-Score:</strong> <span id="nlpF1">100%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 2: AI Medicine Demand Prediction Section -->
+      <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header" style="justify-content:space-between;">
+          <div>
+            <h3>LSTM Medicine Demand Forecasting</h3>
+            <p class="hint-text" style="margin:2px 0 0;">Forecasting 7-day and 30-day consumption using real historical dispensing sequences and neural network weights.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadDemandPredictions()">↻ Recalculate</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Medicine Name</th>
+              <th>Current Stock</th>
+              <th>30d Usage</th>
+              <th>LSTM 7-Day</th>
+              <th>LSTM 30-Day</th>
+              <th>Model</th>
+              <th>Trend</th>
+              <th>Risk Level</th>
+              <th>Recommended Stock</th>
+              <th>Stockout In</th>
+            </tr>
+          </thead>
+          <tbody id="demandPredictionBody">
+            <tr class="empty-row"><td colspan="10">Executing LSTM time-series forecast from dispensing sequences...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Phase 3: AI Smart Reorder Recommendations Section -->
+      <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header" style="justify-content:space-between;">
+          <div>
+            <h3>AI Smart Reorder Recommendations</h3>
+            <p class="hint-text" style="margin:2px 0 0;">Proactive replenishment proposals evaluating current stock, lead time demand, minimum safety levels, and expiry risks.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadReorderRecommendations()">↻ Refresh</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Medicine</th>
+              <th>Current Stock</th>
+              <th>Min Stock</th>
+              <th>Predicted Demand</th>
+              <th>Reorder Qty</th>
+              <th>Priority</th>
+              <th>Supplier</th>
+              <th>AI Reason & Assessment</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="smartReorderBody">
+            <tr class="empty-row"><td colspan="9">Analyzing stock deficits and lead times...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Fast & Slow Movers Grid -->
+      <div class="dash-grid">
+        <div class="card">
+          <div class="card-header"><h3>Fast Moving Medicines (Top Dispensed 30d)</h3></div>
+          <table>
+            <thead><tr><th>#</th><th>Medicine</th><th>Units Sold</th></tr></thead>
+            <tbody id="fastBody"><tr class="empty-row"><td colspan="3">Loading...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Slow Moving Medicines</h3></div>
+          <table>
+            <thead><tr><th>Medicine</th><th>Current Stock</th><th>Note</th></tr></thead>
+            <tbody id="slowBody"><tr class="empty-row"><td colspan="3">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    const user = requireAuth();
+    renderSidebar("ai-dashboard");
+
+    function showToast(message, isError) {
+      const t = document.getElementById("toast");
+      t.textContent = message;
+      t.className = "toast show" + (isError ? " error" : "");
+      setTimeout(() => { t.className = "toast"; }, 2800);
+    }
+
+    async function loadModelMetrics() {
+      try {
+        const info = await Api.get("/ai/models/info");
+        if (info && info.lstm) {
+          if (info.lstm.modelName) document.getElementById("lstmModelId").textContent = info.lstm.modelName;
+          if (info.lstm.metrics && info.lstm.metrics["7_day_forecast"]) {
+            document.getElementById("lstmMae7").textContent = info.lstm.metrics["7_day_forecast"].MAE;
+          }
+          if (info.lstm.metrics && info.lstm.metrics["30_day_forecast"]) {
+            document.getElementById("lstmMae30").textContent = info.lstm.metrics["30_day_forecast"].MAE;
+            document.getElementById("lstmMape").textContent = info.lstm.metrics["30_day_forecast"].MAPE_percent + "%";
+          }
+        }
+        if (info && info.cnn) {
+          if (info.cnn.modelName) document.getElementById("cnnModelId").textContent = info.cnn.modelName;
+          if (info.cnn.metrics) {
+            document.getElementById("cnnAcc").textContent = Math.round((info.cnn.metrics.accuracy || 0.675) * 100) + "%";
+            document.getElementById("cnnPrec").textContent = Math.round((info.cnn.metrics.precision || 0.567) * 100) + "%";
+            document.getElementById("cnnF1").textContent = Math.round((info.cnn.metrics.f1_score || 0.59) * 100) + "%";
+          }
+        }
+        if (info && info.nlp) {
+          if (info.nlp.modelName) document.getElementById("nlpModelId").textContent = info.nlp.modelName;
+          if (info.nlp.metrics) {
+            document.getElementById("nlpAcc").textContent = Math.round((info.nlp.metrics.overall_accuracy || 1.0) * 100) + "%";
+            document.getElementById("nlpPrec").textContent = Math.round((info.nlp.metrics.medicine_precision || 1.0) * 100) + "%";
+            document.getElementById("nlpF1").textContent = Math.round((info.nlp.metrics.medicine_f1_score || 1.0) * 100) + "%";
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load model metrics:", e);
+      }
+    }
+
+    async function loadDemandPredictions() {
+      const body = document.getElementById("demandPredictionBody");
+      try {
+        const rows = await Api.get("/ai/demand-predictions");
+        if (!rows.length) {
+          body.innerHTML = `<tr class="empty-row"><td colspan="10">No medicine data available.</td></tr>`;
+          return;
+        }
+
+        body.innerHTML = rows.map(r => {
+          let riskBadge = '<span class="badge badge-low">LOW (SAFE)</span>';
+          if (r.riskLevel === "CRITICAL") riskBadge = '<span class="badge badge-critical">CRITICAL 🚨</span>';
+          else if (r.riskLevel === "HIGH") riskBadge = '<span class="badge badge-high">HIGH ⚠</span>';
+          else if (r.riskLevel === "MEDIUM") riskBadge = '<span class="badge badge-medium">MEDIUM</span>';
+
+          let trendBadge = `<span class="pill pill-approved">${r.trendLabel || 'Stable ➡️'}</span>`;
+          if (r.trend === "Surging") trendBadge = `<span class="pill pill-rejected">${r.trendLabel || 'Surging 📈'}</span>`;
+          else if (r.trend === "Declining") trendBadge = `<span class="pill pill-pending">${r.trendLabel || 'Declining 📉'}</span>`;
+
+          const daysLeftStr = r.daysUntilStockout != null ? (r.daysUntilStockout + " days") : "—";
+          const p7 = r.predicted7DayDemand != null ? r.predicted7DayDemand : Math.ceil(r.predictedNextMonthDemand * 7 / 30);
+          const modelTag = r.modelName ? `<span class="badge ${r.modelName.includes('LSTM') ? 'badge-low' : 'badge-high'}" style="font-size:11px;">${r.modelName}</span>` : '<span class="badge badge-low">LSTM</span>';
+
+          return `
+            <tr>
+              <td><strong>${r.medicineName}</strong><br/><small class="hint-text">${r.category}</small></td>
+              <td><strong>${r.currentStock}</strong> <small>${r.unit}</small></td>
+              <td>${r.historicalUsage30d}</td>
+              <td><strong style="color:var(--primary);">${p7}</strong> <small>${r.unit}</small></td>
+              <td><strong style="color:var(--primary); font-size:14px;">${r.predictedNextMonthDemand}</strong> <small>${r.unit}</small></td>
+              <td>${modelTag}</td>
+              <td>${trendBadge}</td>
+              <td>${riskBadge}</td>
+              <td><strong>${r.recommendedStockLevel}</strong></td>
+              <td><span style="font-weight:600; color:${r.daysUntilStockout <= 7 ? 'var(--danger)' : 'inherit'};">${daysLeftStr}</span></td>
+            </tr>
+          `;
+        }).join("");
+      } catch (e) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="10">Error loading demand predictions: ${e.message}</td></tr>`;
+      }
+    }
+
+    async function loadReorderRecommendations() {
+      const body = document.getElementById("smartReorderBody");
+      try {
+        const rows = await Api.get("/ai/reorder-recommendations");
+        if (!rows.length) {
+          body.innerHTML = `<tr class="empty-row"><td colspan="9">All medicine stock levels are optimal. No reorders needed currently.</td></tr>`;
+          return;
+        }
+
+        body.innerHTML = rows.map(r => {
+          let priorityBadge = '<span class="badge badge-low">LOW</span>';
+          if (r.priority === "HIGH") priorityBadge = '<span class="badge badge-critical">HIGH PRIORITY 🚨</span>';
+          else if (r.priority === "MEDIUM") priorityBadge = '<span class="badge badge-high">MEDIUM</span>';
+
+          return `
+            <tr>
+              <td><strong>${r.medicineName}</strong></td>
+              <td><strong>${r.currentStock}</strong></td>
+              <td>${r.minimumStock}</td>
+              <td>${r.predictedDemand}</td>
+              <td><strong style="color:var(--primary); font-size:15px;">+${r.recommendedQuantity}</strong></td>
+              <td>${priorityBadge}</td>
+              <td>${r.supplierName || '—'}</td>
+              <td style="max-width:280px; font-size:12px;">${r.reason}</td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="createPO(${r.medicineId}, '${r.medicineName.replace(/'/g, "\\'")}', ${r.recommendedQuantity}, ${r.supplierId || 'null'})">Order Now</button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      } catch (e) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="9">Error loading reorder recommendations: ${e.message}</td></tr>`;
+      }
+    }
+
+    let supplierCache = null;
+    async function createPO(medicineId, medicineName, qty, defaultSupplierId) {
+      try {
+        if (!supplierCache) supplierCache = await Api.get("/suppliers");
+        if (!supplierCache.length) {
+          showToast("Add a supplier first before creating a purchase order.", true);
+          return;
+        }
+
+        let supplierId = defaultSupplierId;
+        if (!supplierId) {
+          const names = supplierCache.map((s, i) => `${i + 1}. ${s.supplierName}`).join("\n");
+          const pick = prompt(`Reorder ${qty} units of ${medicineName}.\nChoose supplier number:\n${names}`, "1");
+          const idx = Number(pick) - 1;
+          if (!supplierCache[idx]) return;
+          supplierId = supplierCache[idx].supplierId;
+        }
+
+        await Api.post("/purchase-orders", {
+          supplier: { supplierId: supplierId },
+          medicine: { medicineId },
+          quantity: qty,
+          notes: "Auto-generated from AI Smart Reorder recommendation"
+        });
+        showToast("Purchase order created for " + qty + " units of " + medicineName + " — pending approval.");
+        await loadReorderRecommendations();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    }
+
+    async function loadFastMoving() {
+      const body = document.getElementById("fastBody");
+      try {
+        const rows = await Api.get("/ai/fast-moving?limit=10");
+        if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="3">No sales recorded yet.</td></tr>`; return; }
+        body.innerHTML = rows.map(r => `<tr><td>${r.rank}</td><td><strong>${r.medicineName}</strong></td><td>${r.unitsSoldLast30Days} units</td></tr>`).join("");
+      } catch (e) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="3">Could not load data.</td></tr>`;
+      }
+    }
+
+    async function loadSlowMoving() {
+      const body = document.getElementById("slowBody");
+      try {
+        const rows = await Api.get("/ai/slow-moving");
+        if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="3">Every medicine has recent sales.</td></tr>`; return; }
+        body.innerHTML = rows.map(r => `<tr><td><strong>${r.medicineName}</strong></td><td>${r.currentStock}</td><td class="hint-text">${r.note}</td></tr>`).join("");
+      } catch (e) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="3">Could not load data.</td></tr>`;
+      }
+    }
+
+    loadModelMetrics();
+    loadDemandPredictions();
+    loadReorderRecommendations();
+    loadFastMoving();
+    loadSlowMoving();
+  </script>
+</body>
+</html>

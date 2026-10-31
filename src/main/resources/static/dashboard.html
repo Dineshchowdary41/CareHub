@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Dashboard — CareHub 3.0</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>CareHub 3.0 Dashboard</h2>
+          <p>Real-time clinical intelligence, appointment analytics, and inventory operations</p>
+        </div>
+      </div>
+
+      <!-- Stat Counters Grid -->
+      <div class="stat-grid" id="statGrid"></div>
+
+      <!-- 🤖 AI Insights Section (Module 7: LSTM + CNN + NLP) -->
+      <div class="ai-section" id="aiInsightsSection">
+        <div class="ai-section-header">
+          <div class="ai-section-title">
+            <span>🤖 AI INSIGHTS (LSTM &bull; CNN &bull; NLP)</span>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <a href="prescription-ocr.html" class="btn btn-secondary btn-sm">📷 Scan Prescription (CNN+NLP)</a>
+            <a href="ai-dashboard.html" class="btn btn-primary btn-sm">View Full AI Dashboard →</a>
+          </div>
+        </div>
+        <div class="ai-cards-grid" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));">
+          <!-- Card 1: LSTM Demand Forecast -->
+          <div class="ai-insight-box">
+            <h4>LSTM DEMAND FORECAST</h4>
+            <div class="ai-highlight" id="aiLstmMedName">Loading...</div>
+            <p id="aiLstmForecastLabel">Predicted Demand: - &bull; Risk: -</p>
+          </div>
+          <!-- Card 2: AI Stock-out Prediction -->
+          <div class="ai-insight-box">
+            <h4>AI STOCK-OUT PREDICTION</h4>
+            <div class="ai-highlight" id="aiStockoutHighlight">-</div>
+            <p id="aiStockoutDesc">Medicines reaching critical stock in &le; 7 days</p>
+          </div>
+          <!-- Card 3: CNN Prescription Analysis -->
+          <div class="ai-insight-box">
+            <h4>CNN PRESCRIPTION ANALYSIS</h4>
+            <div class="ai-highlight" id="aiCnnCount">-</div>
+            <p id="aiCnnDesc">Prescriptions visually inspected &amp; classified</p>
+          </div>
+          <!-- Card 4: NLP Prescription Extraction -->
+          <div class="ai-insight-box">
+            <h4>NLP PRESCRIPTION EXTRACTION</h4>
+            <div class="ai-highlight" style="font-size:15px; font-weight:700;" id="aiNlpStatus">Active Pipeline</div>
+            <p id="aiNlpDesc" style="font-size:12px;">Extracts Medicine, Dosage, Frequency &amp; Duration</p>
+          </div>
+          <!-- Card 5: Smart Reorder -->
+          <div class="ai-insight-box">
+            <h4>SMART REORDER</h4>
+            <div class="ai-highlight" id="aiReorderHighlight">-</div>
+            <p id="aiReorderDesc">Medicines require restocking</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alerts Grid -->
+      <div class="dash-grid">
+        <div class="card" id="lowStockCard">
+          <div class="card-header"><h3>⚠ Low Stock Alerts</h3></div>
+          <table>
+            <thead><tr><th>Medicine</th><th>Batch No</th><th>Available</th><th>Minimum</th><th>Expiry</th></tr></thead>
+            <tbody id="lowStockBody"><tr class="empty-row"><td colspan="5">Loading...</td></tr></tbody>
+          </table>
+        </div>
+
+        <div class="card" id="expiryCard">
+          <div class="card-header"><h3>Expiring Soon (30 days)</h3></div>
+          <table>
+            <thead><tr><th>Medicine</th><th>Batch No</th><th>Available</th><th>Expiry</th></tr></thead>
+            <tbody id="expiryBody"><tr class="empty-row"><td colspan="4">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Advanced Analytics Charts (6 Charts) -->
+      <div class="dash-grid" id="chartGrid">
+        <div class="card">
+          <div class="card-header"><h3>Monthly Revenue</h3></div>
+          <canvas id="revenueChart" height="220"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Patient Growth</h3></div>
+          <canvas id="growthChart" height="220"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Medicine Usage (30 days)</h3></div>
+          <canvas id="usageChart" height="220"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Stock Distribution</h3></div>
+          <canvas id="stockChart" height="220"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Appointment Statistics</h3></div>
+          <canvas id="aptChart" height="220"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>AI Predicted Demand vs Actual</h3></div>
+          <canvas id="aiDemandChart" height="220"></canvas>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    const me = requireAuth();
+    renderSidebar("dashboard");
+    const role = me ? me.role : null;
+    const can = (...roles) => role && roles.includes(role);
+
+    const ALL_STATS = [
+      { key: "totalPatients", label: "Total Patients", roles: ["Admin","Doctor","Receptionist","Pharmacist"] },
+      { key: "totalDoctors", label: "Total Doctors", roles: ["Admin","Doctor","Receptionist","Pharmacist"] },
+      { key: "todayAppointments", label: "Today's Appointments", roles: ["Admin","Doctor","Receptionist"], badge: "scheduled" },
+      { key: "totalMedicines", label: "Total Medicines", roles: ["Admin","Doctor","Pharmacist"] },
+      { key: "availableStock", label: "Available Stock", roles: ["Admin","Pharmacist"] },
+      { key: "lowStockCount", label: "Low Stock Alerts", roles: ["Admin","Pharmacist"], badge: "red" },
+      { key: "expiringSoonCount", label: "Expiring Medicines", roles: ["Admin","Pharmacist"], badge: "orange" },
+      { key: "pendingBills", label: "Pending Bills", roles: ["Admin","Receptionist"] },
+      { key: "totalRevenue", label: "Total Revenue", roles: ["Admin"], money: true },
+      { key: "totalPrescriptions", label: "Prescriptions", roles: ["Admin","Doctor","Pharmacist"] },
+      { key: "totalMedicalRecords", label: "Medical Records", roles: ["Admin","Doctor"] },
+      { key: "aiUrgentAlerts", label: "AI Forecast Alerts", roles: ["Admin","Pharmacist","Doctor"], badge: "red" },
+    ];
+
+    async function loadStats() {
+      const grid = document.getElementById("statGrid");
+      const visible = ALL_STATS.filter(s => can(...s.roles));
+      grid.innerHTML = visible.map(s => `
+        <div class="stat-card">
+          <div class="num" id="stat_${s.key}">-</div>
+          <div class="label">${s.label}</div>
+        </div>`).join("");
+
+      try {
+        const data = await Api.get("/dashboard/summary");
+        visible.forEach(s => {
+          const el = document.getElementById(`stat_${s.key}`);
+          if (!el) return;
+          let val = data[s.key];
+          if (s.money && val != null) val = "₹" + Number(val).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+          el.textContent = val ?? "-";
+          if (s.badge && Number(data[s.key]) > 0) el.classList.add("num-" + s.badge);
+        });
+      } catch (e) {
+        visible.forEach(s => { const el = document.getElementById(`stat_${s.key}`); if (el) el.textContent = "-"; });
+      }
+    }
+
+    async function loadAiInsights() {
+      const section = document.getElementById("aiInsightsSection");
+      if (!can("Admin", "Pharmacist", "Doctor")) {
+        section.style.display = "none";
+        return;
+      }
+
+      try {
+        const data = await Api.get("/ai/insights");
+        if (document.getElementById("aiLstmMedName")) {
+          document.getElementById("aiLstmMedName").textContent = data.lstmTopMedicine || "Paracetamol";
+          document.getElementById("aiLstmForecastLabel").textContent =
+            `Predicted Demand: ${data.lstmTopDemand || 0} • Risk: ${data.lstmTopRisk || 'LOW'}`;
+
+          document.getElementById("aiStockoutHighlight").textContent = (data.criticalStockoutRiskCount || 0) + " Medicines";
+          document.getElementById("aiStockoutDesc").textContent =
+            (data.criticalStockoutRiskCount > 0) ? `${data.criticalStockoutRiskCount} medicines may reach critical stock in ≤ 7 days.` : "No medicines at critical risk in next 7 days.";
+
+          document.getElementById("aiCnnCount").textContent = (data.cnnPrescriptionsAnalyzed || 0) + " Analyzed";
+          document.getElementById("aiCnnDesc").textContent = "Prescriptions inspected via " + (data.cnnModelName || "CNN");
+
+          document.getElementById("aiNlpStatus").textContent = "Average Extraction";
+          document.getElementById("aiNlpDesc").textContent = data.nlpExtractionFields || "Medicine, Dosage, Frequency, Duration";
+
+          document.getElementById("aiReorderHighlight").textContent = (data.reorderRequiredCount || 0) + " Medicines";
+          document.getElementById("aiReorderDesc").textContent = `${data.reorderRequiredCount || 0} medicines require restocking.`;
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    async function loadLowStock() {
+      const card = document.getElementById("lowStockCard");
+      if (!can("Admin", "Pharmacist")) { card.style.display = "none"; return; }
+      const body = document.getElementById("lowStockBody");
+      try {
+        const rows = await Api.get("/dashboard/low-stock");
+        if (!rows.length) {
+          body.innerHTML = `<tr class="empty-row"><td colspan="5">All stock levels look healthy.</td></tr>`;
+          return;
+        }
+        body.innerHTML = rows.map(i => `
+          <tr>
+            <td>${i.medicineName}</td>
+            <td>${i.batchNo}</td>
+            <td><span class="badge badge-red">${i.availableStock}</span></td>
+            <td>${i.minimumStock}</td>
+            <td>${i.expiryDate}</td>
+          </tr>`).join("");
+      } catch (e) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="5">Could not load inventory.</td></tr>`;
+      }
+    }
+
+    async function loadExpiry() {
+      const card = document.getElementById("expiryCard");
+      if (!can("Admin", "Pharmacist")) { card.style.display = "none"; return; }
+      const body = document.getElementById("expiryBody");
+      try {
+        const rows = await Api.get("/dashboard/expiring?days=30");
+        if (!rows.length) {
+          body.innerHTML = `<tr class="empty-row"><td colspan="4">Nothing expiring in the next 30 days.</td></tr>`;
+          return;
+        }
+        body.innerHTML = rows.map(i => `
+          <tr>
+            <td>${i.medicineName}</td>
+            <td>${i.batchNo}</td>
+            <td>${i.availableStock}</td>
+            <td><span class="badge badge-orange">${i.expiryDate}</span></td>
+          </tr>`).join("");
+      } catch (e) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="4">Could not load expiry data.</td></tr>`;
+      }
+    }
+
+    function makeChart(ctx, type, labels, data, label, color) {
+      return new Chart(ctx, {
+        type,
+        data: { labels, datasets: [{ label, data, backgroundColor: color, borderColor: color, borderWidth: 2, tension: 0.3 }] },
+        options: { responsive: true, plugins: { legend: { display: type === "doughnut" } } }
+      });
+    }
+
+    async function loadCharts() {
+      const showRevenue = can("Admin");
+      const showGrowth = can("Admin", "Doctor", "Receptionist");
+      const showUsage = can("Admin", "Pharmacist");
+      const showStock = can("Admin", "Pharmacist");
+      const showApts = can("Admin", "Doctor", "Receptionist");
+      const showAi = can("Admin", "Pharmacist", "Doctor");
+
+      document.getElementById("revenueChart").closest(".card").style.display = showRevenue ? "" : "none";
+      document.getElementById("growthChart").closest(".card").style.display = showGrowth ? "" : "none";
+      document.getElementById("usageChart").closest(".card").style.display = showUsage ? "" : "none";
+      document.getElementById("stockChart").closest(".card").style.display = showStock ? "" : "none";
+      document.getElementById("aptChart").closest(".card").style.display = showApts ? "" : "none";
+      document.getElementById("aiDemandChart").closest(".card").style.display = showAi ? "" : "none";
+
+      try {
+        const charts = await Api.get("/dashboard/charts");
+
+        if (showRevenue) {
+          makeChart(document.getElementById("revenueChart"), "line",
+            charts.monthlyRevenue.map(r => r.month), charts.monthlyRevenue.map(r => r.revenue),
+            "Revenue", "#0d47a1");
+        }
+        if (showGrowth) {
+          makeChart(document.getElementById("growthChart"), "bar",
+            charts.patientGrowth.map(r => r.month), charts.patientGrowth.map(r => r.newPatients),
+            "New Patients", "#00acc1");
+        }
+        if (showUsage) {
+          makeChart(document.getElementById("usageChart"), "bar",
+            charts.medicineUsage.map(r => r.medicineName), charts.medicineUsage.map(r => r.unitsSold),
+            "Units Sold", "#43a047");
+        }
+        if (showStock) {
+          makeChart(document.getElementById("stockChart"), "doughnut",
+            charts.stockDistribution.map(r => r.category), charts.stockDistribution.map(r => r.stock),
+            "Stock", ["#0d47a1","#00acc1","#43a047","#fb8c00","#e53935","#8e24aa","#6d4c41","#546e7a"]);
+        }
+        if (showApts && charts.appointmentStats) {
+          makeChart(document.getElementById("aptChart"), "doughnut",
+            charts.appointmentStats.map(r => r.status), charts.appointmentStats.map(r => r.count),
+            "Appointments", ["#0284c7","#7c3aed","#16a34a","#64748b"]);
+        }
+        if (showAi && charts.aiDemandPrediction) {
+          const ctx = document.getElementById("aiDemandChart");
+          new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: charts.aiDemandPrediction.map(r => r.medicineName),
+              datasets: [
+                {
+                  label: "Actual Usage (Monthly Avg)",
+                  data: charts.aiDemandPrediction.map(r => r.actualMonthlyUsage),
+                  backgroundColor: "#0d47a1"
+                },
+                {
+                  label: "AI Predicted Next Month Demand",
+                  data: charts.aiDemandPrediction.map(r => r.predictedDemand),
+                  backgroundColor: "#00acc1"
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              scales: { y: { beginAtZero: true } }
+            }
+          });
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    loadStats();
+    loadAiInsights();
+    loadLowStock();
+    loadExpiry();
+    loadCharts();
+  </script>
+</body>
+</html>

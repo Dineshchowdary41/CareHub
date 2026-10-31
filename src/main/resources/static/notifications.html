@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Notification Center — CareHub 3.0</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>Notification Center</h2>
+          <p>Real-time hospital alerts: stock deficiencies, batch expiry warnings, appointment schedules, and AI insights</p>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="filter-pills" id="notifFilterPills">
+          <button class="filter-pill active" onclick="setNotifFilter('ALL')">All Alerts</button>
+          <button class="filter-pill" onclick="setNotifFilter('UNREAD')">Unread Only</button>
+          <button class="filter-pill" onclick="setNotifFilter('LOW_STOCK')">Low Stock</button>
+          <button class="filter-pill" onclick="setNotifFilter('EXPIRY')">Expiry</button>
+          <button class="filter-pill" onclick="setNotifFilter('APPOINTMENT')">Appointments</button>
+          <button class="filter-pill" onclick="setNotifFilter('BILLING')">Billing</button>
+        </div>
+        <button class="btn btn-secondary" onclick="markAllAsRead()">✓ Mark All as Read</button>
+      </div>
+
+      <div id="notificationsContainer">
+        <div class="card"><p class="hint-text">Loading notifications...</p></div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    const user = requireAuth();
+    renderSidebar("notifications");
+
+    let allNotifs = [];
+    let currentFilter = "ALL";
+
+    function showToast(msg, isError) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.className = "toast show" + (isError ? " error" : "");
+      setTimeout(() => { t.className = "toast"; }, 2800);
+    }
+
+    async function loadNotifications() {
+      const container = document.getElementById("notificationsContainer");
+      try {
+        allNotifs = await Api.get("/notifications");
+        renderNotifications();
+      } catch (e) {
+        container.innerHTML = `<div class="card"><p class="hint-text">Error loading notifications: ${e.message}</p></div>`;
+      }
+    }
+
+    function setNotifFilter(type) {
+      currentFilter = type;
+      document.querySelectorAll("#notifFilterPills .filter-pill").forEach(p => p.classList.remove("active"));
+      event.target.classList.add("active");
+      renderNotifications();
+    }
+
+    function renderNotifications() {
+      const container = document.getElementById("notificationsContainer");
+
+      const filtered = allNotifs.filter(n => {
+        if (currentFilter === "UNREAD") return !n.isRead;
+        if (currentFilter !== "ALL") return n.type === currentFilter;
+        return true;
+      });
+
+      if (!filtered.length) {
+        container.innerHTML = `<div class="card" style="text-align:center; padding:36px;"><p class="hint-text">No notifications to display in this category.</p></div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(n => {
+        const unreadCls = n.isRead ? "" : "unread";
+        let icon = "🔔";
+        if (n.type === "LOW_STOCK") icon = "⚠️";
+        else if (n.type === "EXPIRY") icon = "⏳";
+        else if (n.type === "APPOINTMENT") icon = "📅";
+        else if (n.type === "BILLING") icon = "💳";
+        else if (n.type === "AI_RECOMMENDATION") icon = "🤖";
+
+        const timeStr = n.createdAt ? n.createdAt.replace("T", " ").slice(0, 16) : "Just now";
+
+        return `
+          <div class="notif-card ${unreadCls}">
+            <div class="notif-content">
+              <div class="notif-icon">${icon}</div>
+              <div>
+                <div class="notif-title">
+                  ${n.title}
+                  ${!n.isRead ? '<span class="pill pill-pending" style="font-size:11px; margin-left:8px;">New</span>' : ''}
+                </div>
+                <div class="notif-msg">${n.message}</div>
+                <div class="notif-time">${timeStr}</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              ${n.linkUrl ? `<a href="${n.linkUrl}" class="btn btn-secondary btn-sm">View Details</a>` : ''}
+              ${!n.isRead ? `<button class="btn btn-secondary btn-sm" onclick="markRead(${n.notificationId})">Mark Read</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function markRead(id) {
+      try {
+        await Api.patch(`/notifications/${id}/read`);
+        const item = allNotifs.find(n => n.notificationId === id);
+        if (item) item.isRead = true;
+        renderNotifications();
+        updateNotificationBell();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    }
+
+    async function markAllAsRead() {
+      try {
+        await Api.patch("/notifications/mark-all-read");
+        showToast("All notifications marked as read");
+        allNotifs.forEach(n => n.isRead = true);
+        renderNotifications();
+        updateNotificationBell();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    }
+
+    loadNotifications();
+  </script>
+</body>
+</html>

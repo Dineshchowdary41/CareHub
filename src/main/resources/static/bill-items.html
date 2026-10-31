@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Bill Items — CareHub</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div><h2 id="pageTitle"></h2><p id="pageSubtitle"></p></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <input class="search-box" id="searchInput" placeholder="Search bill items..." />
+          <button class="btn btn-primary" id="addBtn">+ Add Item</button>
+        </div>
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"><tr class="empty-row"><td>Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 id="modalTitle"></h3>
+      <div id="modalForm"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/crud.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("bill-items");
+
+    CRUD.init({
+      title: "Bill Items",
+      subtitle: "Individual medicines charged within a bill",
+      endpoint: "/bill-items",
+      idField: "billItemId",
+      columns: [
+        { key: "bill", label: "Bill", render: r => r.bill ? `#${r.bill.billId} — ${r.bill.patient ? r.bill.patient.name : ""}` : "—" },
+        { key: "medicine", label: "Medicine", render: r => r.medicine ? r.medicine.medicineName : "—" },
+        { key: "quantity", label: "Quantity" },
+        { key: "unitPrice", label: "Unit Price", render: r => r.unitPrice !== null ? "₹" + r.unitPrice.toFixed(2) : "—" },
+        { key: "totalPrice", label: "Total Price", render: r => r.totalPrice !== null ? "₹" + r.totalPrice.toFixed(2) : "—" },
+      ],
+      searchKeys: [],
+      fields: [
+        { name: "bill", label: "Bill", type: "fk", required: true,
+          fkEndpoint: "/bills", fkIdField: "billId",
+          fkLabel: b => `#${b.billId} — ${b.patient ? b.patient.name : "?"} (${b.paymentStatus})` },
+        { name: "medicine", label: "Medicine", type: "fk", required: true,
+          fkEndpoint: "/medicines", fkIdField: "medicineId", fkLabel: m => m.medicineName },
+        { name: "quantity", label: "Quantity", type: "number", required: true },
+        { name: "unitPrice", label: "Unit Price", type: "number", required: true },
+        { name: "totalPrice", label: "Total Price", type: "number", required: true },
+      ],
+    });
+  </script>
+</body>
+</html>

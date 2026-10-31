@@ -1,0 +1,23 @@
+{
+  "model_name": "LSTM-DemandNet-v1",
+  "task": "Medicine Demand Time-Series Forecasting",
+  "trained_at": "2026-10-30T18:52:56.337648",
+  "training_samples": 1096,
+  "test_samples": 274,
+  "sequence_length_days": 14,
+  "evaluation_metrics": {
+    "7_day_forecast": {
+      "MAE": 39.26,
+      "RMSE": 40.98,
+      "MAPE_percent": 30.57
+    },
+    "30_day_forecast": {
+      "MAE": 172.8,
+      "RMSE": 180.99,
+      "MAPE_percent": 30.17,
+      "R2_score": -0.0826
+    }
+  },
+  "final_train_loss": 24199.5703125,
+  "final_val_loss": 17218.955078125
+}

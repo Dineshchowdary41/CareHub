@@ -1,0 +1,24 @@
+{
+  "model_name": "CNN-PrescriptionNet-v1",
+  "task": "Prescription Document & Quality Image Classification",
+  "trained_at": "2026-10-30T18:53:53.892257",
+  "input_resolution": "128x128x3",
+  "num_classes": 4,
+  "classes": [
+    "VALID_PRESCRIPTION_PRINTED",
+    "VALID_PRESCRIPTION_HANDWRITTEN",
+    "POOR_QUALITY_DEGRADED",
+    "NON_PRESCRIPTION_DOCUMENT"
+  ],
+  "train_samples": 120,
+  "test_samples": 40,
+  "evaluation_metrics": {
+    "accuracy": 0.675,
+    "precision": 0.5673,
+    "recall": 0.675,
+    "f1_score": 0.5899
+  },
+  "final_train_loss": 5.983151368127437e-06,
+  "final_val_loss": 0.8390960693359375,
+  "final_val_accuracy": 0.675000011920929
+}

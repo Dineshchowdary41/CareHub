@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>AI Prescription OCR — CareHub 3.0</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>AI Prescription OCR</h2>
+          <p>Scan handwritten or printed prescription images, automatically identify drugs, and verify before saving</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+          <h3>Upload Prescription Document / Image</h3>
+        </div>
+
+        <div class="ocr-dropzone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <div class="icon">📷</div>
+          <h4 style="margin:0 0 8px;">Click or Drag & Drop Prescription Image Here</h4>
+          <p class="hint-text" style="margin:0 0 14px;">Supports PNG, JPG, JPEG scanned clinical prescriptions</p>
+          <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="onFileSelected(this.files[0])" />
+          <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">Choose Image File</button>
+        </div>
+
+        <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="font-size:13px; color:var(--muted); font-weight:600;">Or quick test presets:</span>
+            <button class="btn btn-secondary btn-sm" onclick="loadSamplePreset('infection_antibiotics.png')">Sample 1: Antibiotics</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadSamplePreset('fever_cold.png')">Sample 2: Fever & Cold</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadSamplePreset('diabetes_cardiac.png')">Sample 3: Chronic Care</button>
+          </div>
+          <div>
+            <span id="selectedFileName" style="font-size:13px; font-weight:600; margin-right:12px; color:var(--primary);"></span>
+            <button class="btn btn-primary" id="scanBtn" onclick="scanPrescription()" disabled>🔍 Scan Prescription</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- OCR Results Section -->
+      <div id="ocrResultSection" style="display:none;">
+        <!-- CNN Image Quality & Document Analysis Card (Module 2) -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header" style="justify-content:space-between;">
+            <div>
+              <h3>CNN Prescription Image Analysis</h3>
+              <p class="hint-text" style="margin:2px 0 0;">Model: <strong id="cnnModelBadge" style="color:var(--primary);">CNN-PrescriptionNet-v1</strong> &bull; Deep learning visual inspection, legibility quality score &amp; document classification</p>
+            </div>
+            <span class="badge" id="cnnQualityBadge">GOOD</span>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-top:12px;">
+            <div style="background:var(--bg); padding:12px; border-radius:6px; border:1px solid var(--border);">
+              <small style="color:var(--muted); font-weight:600; text-transform:uppercase;">Document Classification</small>
+              <div style="font-size:15px; font-weight:700; margin-top:4px;" id="cnnClassLabel">Prescription detected</div>
+              <small id="cnnConfidenceLabel" style="color:var(--muted);">Confidence: 92%</small>
+            </div>
+            <div style="background:var(--bg); padding:12px; border-radius:6px; border:1px solid var(--border);">
+              <small style="color:var(--muted); font-weight:600; text-transform:uppercase;">Image Quality Level</small>
+              <div style="font-size:15px; font-weight:700; margin-top:4px;" id="cnnQualityLabel">GOOD</div>
+              <small id="cnnSharpnessLabel" style="color:var(--muted);">Sharpness Variance: 85.0</small>
+            </div>
+            <div style="background:var(--bg); padding:12px; border-radius:6px; border:1px solid var(--border);">
+              <small style="color:var(--muted); font-weight:600; text-transform:uppercase;">Visual Inspection Assessment</small>
+              <div style="font-size:13px; margin-top:4px;" id="cnnDescLabel">Clear clinical prescription with high readability.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Extracted Text Display -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <h3>Extracted Text from Image (OCR)</h3>
+            <span class="pill pill-approved" id="ocrSuccessBadge">OCR Completed</span>
+          </div>
+          <div class="ocr-raw-box" id="rawTextBox"></div>
+        </div>
+
+        <!-- Detected Medicines Table & Clinician Verification (Module 3 NLP) -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header" style="justify-content:space-between;">
+            <div>
+              <h3>NLP Clinical Entity Extraction (Clinician Verification Required)</h3>
+              <p class="hint-text" style="margin:2px 0 0;">Model: <strong id="nlpModelBadge" style="color:var(--primary);">NLP-ClinicalRegexNER-v1</strong> &bull; Extracted Medicine, Dosage, Frequency &amp; Duration. Verify, edit dosage, or add/remove medicines before creating the official prescription.</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="addNewMedicineRow()">+ Add Medicine</button>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Medicine Name</th>
+                <th>Dosage</th>
+                <th>Frequency</th>
+                <th>Duration</th>
+                <th>Quantity</th>
+                <th>Catalog Match</th>
+                <th>Remove</th>
+              </tr>
+            </thead>
+            <tbody id="detectedMedicinesBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Confirmation & Saving Form -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Confirm & Save Verified Prescription</h3>
+          </div>
+          <form id="confirmPrescriptionForm" onsubmit="confirmPrescription(event)">
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px;">
+              <div class="form-group">
+                <label>Select Patient *</label>
+                <select id="confirmPatient" required>
+                  <option value="">-- select patient --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Attending Doctor *</label>
+                <select id="confirmDoctor" required>
+                  <option value="">-- select doctor --</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Doctor's Advice & Prescription Notes</label>
+              <textarea id="confirmNotes" placeholder="Special instructions, dietary restrictions..."></textarea>
+            </div>
+            <div style="text-align:right;">
+              <button type="submit" class="btn btn-primary" id="confirmBtn">✓ Confirm & Create Prescription</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    const user = requireAuth();
+    renderSidebar("prescription-ocr");
+
+    let currentFile = null;
+    let detectedMedicines = [];
+    let patientsList = [];
+    let doctorsList = [];
+
+    function showToast(msg, isError) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.className = "toast show" + (isError ? " error" : "");
+      setTimeout(() => { t.className = "toast"; }, 2800);
+    }
+
+    async function initPage() {
+      try {
+        patientsList = await Api.get("/patients");
+        const pSel = document.getElementById("confirmPatient");
+        pSel.innerHTML = '<option value="">-- select patient --</option>' +
+          patientsList.map(p => `<option value="${p.patientId}">${p.name} (Phone: ${p.phone || 'N/A'})</option>`).join("");
+
+        doctorsList = await Api.get("/doctors");
+        const dSel = document.getElementById("confirmDoctor");
+        dSel.innerHTML = '<option value="">-- select doctor --</option>' +
+          doctorsList.map(d => `<option value="${d.doctorId}">Dr. ${d.name} (${d.specialization || 'General'})</option>`).join("");
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    }
+
+    function onFileSelected(file) {
+      if (!file) return;
+      currentFile = file;
+      document.getElementById("selectedFileName").textContent = file.name;
+      document.getElementById("scanBtn").disabled = false;
+    }
+
+    // Drag and drop handlers
+    const dropZone = document.getElementById("dropZone");
+    dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("dragover"); });
+    dropZone.addEventListener("dragleave", () => { dropZone.classList.remove("dragover"); });
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      if (e.dataTransfer.files.length) {
+        onFileSelected(e.dataTransfer.files[0]);
+      }
+    });
+
+    function loadSamplePreset(presetName) {
+      // Create a dummy image file with presetName
+      const canvas = document.createElement("canvas");
+      canvas.width = 300;
+      canvas.height = 100;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, 300, 100);
+      ctx.fillStyle = "#0d47a1";
+      ctx.font = "14px Arial";
+      ctx.fillText("Rx: " + presetName, 20, 50);
+
+      canvas.toBlob(blob => {
+        const file = new File([blob], presetName, { type: "image/png" });
+        onFileSelected(file);
+        scanPrescription();
+      }, "image/png");
+    }
+
+    async function scanPrescription() {
+      if (!currentFile) {
+        showToast("Please choose or drag a prescription image first.", true);
+        return;
+      }
+
+      const scanBtn = document.getElementById("scanBtn");
+      scanBtn.disabled = true;
+      scanBtn.textContent = "Processing OCR...";
+
+      const formData = new FormData();
+      formData.append("file", currentFile);
+
+      try {
+        const res = await fetch("/api/ai/prescription-ocr", {
+          method: "POST",
+          body: formData,
+          credentials: "same-origin"
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || "OCR Processing failed");
+        }
+
+        const data = await res.json();
+        renderOcrResults(data);
+        showToast("Prescription text extracted successfully!");
+      } catch (e) {
+        showToast("OCR Error: " + e.message, true);
+      } finally {
+        scanBtn.disabled = false;
+        scanBtn.textContent = "🔍 Scan Prescription";
+      }
+    }
+
+    function renderOcrResults(data) {
+      document.getElementById("ocrResultSection").style.display = "block";
+      document.getElementById("rawTextBox").textContent = data.rawText || "(No text detected)";
+
+      // CNN Model & Quality details
+      if (data.cnnModelName) {
+        document.getElementById("cnnModelBadge").textContent = data.cnnModelName;
+      }
+      if (data.nlpModelName) {
+        document.getElementById("nlpModelBadge").textContent = data.nlpModelName;
+      }
+
+      const quality = data.imageQuality || "GOOD";
+      const qualityBadge = document.getElementById("cnnQualityBadge");
+      qualityBadge.textContent = quality;
+      qualityBadge.className = "badge " + (quality === "EXCELLENT" || quality === "GOOD" ? "badge-low" : (quality === "BLURRY" ? "badge-medium" : "badge-critical"));
+
+      document.getElementById("cnnQualityLabel").textContent = quality;
+      document.getElementById("cnnSharpnessLabel").textContent = "Sharpness: " + (data.sharpnessScore != null ? data.sharpnessScore : "85.0");
+
+      let classDisplay = "Prescription Detected";
+      if (data.cnnClassification) {
+        classDisplay = data.cnnClassification.replace(/_/g, " ");
+      }
+      document.getElementById("cnnClassLabel").textContent = classDisplay;
+
+      const confPct = data.cnnConfidence != null ? Math.round(data.cnnConfidence * 100) : 92;
+      document.getElementById("cnnConfidenceLabel").textContent = "Confidence: " + confPct + "%";
+      document.getElementById("cnnDescLabel").textContent = data.qualityDescription || "Visual inspection completed.";
+
+      detectedMedicines = data.detectedMedicines || [];
+      renderDetectedMedicinesTable();
+
+      // Scroll smoothly to results
+      document.getElementById("ocrResultSection").scrollIntoView({ behavior: "smooth" });
+    }
+
+    function renderDetectedMedicinesTable() {
+      const body = document.getElementById("detectedMedicinesBody");
+      if (!detectedMedicines.length) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="8">No medicines detected. Click "+ Add Medicine" to specify manually.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = detectedMedicines.map((m, idx) => `
+        <tr>
+          <td><strong>${idx + 1}</strong></td>
+          <td><input type="text" class="table-input" value="${m.medicineName || ''}" onchange="updateMed(${idx}, 'medicineName', this.value)" style="width:160px; padding:6px; border:1px solid var(--border); border-radius:4px;" /></td>
+          <td><input type="text" class="table-input" value="${m.dosage || ''}" onchange="updateMed(${idx}, 'dosage', this.value)" style="width:100px; padding:6px; border:1px solid var(--border); border-radius:4px;" /></td>
+          <td><input type="text" class="table-input" value="${m.frequency || ''}" onchange="updateMed(${idx}, 'frequency', this.value)" style="width:130px; padding:6px; border:1px solid var(--border); border-radius:4px;" /></td>
+          <td><input type="text" class="table-input" value="${m.duration || ''}" onchange="updateMed(${idx}, 'duration', this.value)" style="width:100px; padding:6px; border:1px solid var(--border); border-radius:4px;" /></td>
+          <td><input type="number" class="table-input" value="${m.quantity || 10}" onchange="updateMed(${idx}, 'quantity', Number(this.value))" style="width:70px; padding:6px; border:1px solid var(--border); border-radius:4px;" /></td>
+          <td><span class="badge ${m.matchedInCatalog ? 'badge-low' : 'badge-high'}">${m.matchedInCatalog ? 'Catalog Matched ✓' : 'New / Unmatched'}</span></td>
+          <td><button type="button" class="btn btn-danger btn-sm" onclick="removeMed(${idx})">✕</button></td>
+        </tr>
+      `).join("");
+    }
+
+    function updateMed(idx, field, val) {
+      if (detectedMedicines[idx]) {
+        detectedMedicines[idx][field] = val;
+      }
+    }
+
+    function removeMed(idx) {
+      detectedMedicines.splice(idx, 1);
+      renderDetectedMedicinesTable();
+    }
+
+    function addNewMedicineRow() {
+      detectedMedicines.push({
+        medicineName: "New Medicine",
+        dosage: "500 mg",
+        frequency: "2 times/day",
+        duration: "5 days",
+        quantity: 10,
+        matchedInCatalog: false
+      });
+      renderDetectedMedicinesTable();
+    }
+
+    async function confirmPrescription(e) {
+      e.preventDefault();
+      const patientId = document.getElementById("confirmPatient").value;
+      const doctorId = document.getElementById("confirmDoctor").value;
+      const notes = document.getElementById("confirmNotes").value;
+
+      if (!detectedMedicines.length) {
+        showToast("Please ensure at least one verified medicine is present in the table.", true);
+        return;
+      }
+
+      const payload = {
+        patientId: Number(patientId),
+        doctorId: Number(doctorId),
+        notes: notes || "AI Prescription OCR Verified",
+        items: detectedMedicines
+      };
+
+      try {
+        const btn = document.getElementById("confirmBtn");
+        btn.disabled = true;
+        btn.textContent = "Saving Prescription...";
+
+        const saved = await Api.post("/ai/prescription-ocr/confirm", payload);
+        showToast("Prescription #" + saved.prescriptionId + " created successfully!");
+
+        // Redirect to patient history or prescriptions after 1.5s
+        setTimeout(() => {
+          window.location.href = `patient-history.html?patientId=${patientId}`;
+        }, 1500);
+      } catch (err) {
+        showToast("Error confirming prescription: " + err.message, true);
+        document.getElementById("confirmBtn").disabled = false;
+        document.getElementById("confirmBtn").textContent = "✓ Confirm & Create Prescription";
+      }
+    }
+
+    initPage();
+  </script>
+</body>
+</html>

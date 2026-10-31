@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Prescription Items — CareHub</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div><h2 id="pageTitle"></h2><p id="pageSubtitle"></p></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <input class="search-box" id="searchInput" placeholder="Search prescription items..." />
+          <button class="btn btn-primary" id="addBtn">+ Add Item</button>
+        </div>
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"><tr class="empty-row"><td>Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 id="modalTitle"></h3>
+      <div id="modalForm"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/crud.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("prescription-items");
+
+    CRUD.init({
+      title: "Prescription Items",
+      subtitle: "Individual medicines within a prescription",
+      endpoint: "/prescription-items",
+      idField: "itemId",
+      columns: [
+        { key: "prescription", label: "Prescription", render: r => r.prescription ? `#${r.prescription.prescriptionId} — ${r.prescription.patient ? r.prescription.patient.name : ""}` : "—" },
+        { key: "medicine", label: "Medicine", render: r => r.medicine ? r.medicine.medicineName : "—" },
+        { key: "dosage", label: "Dosage" },
+        { key: "frequency", label: "Frequency" },
+        { key: "duration", label: "Duration" },
+        { key: "quantity", label: "Quantity" },
+      ],
+      searchKeys: ["dosage", "frequency"],
+      fields: [
+        { name: "prescription", label: "Prescription", type: "fk", required: true,
+          fkEndpoint: "/prescriptions", fkIdField: "prescriptionId",
+          fkLabel: p => `#${p.prescriptionId} — ${p.patient ? p.patient.name : "?"} (Dr. ${p.doctor ? p.doctor.name : "?"})` },
+        { name: "medicine", label: "Medicine", type: "fk", required: true,
+          fkEndpoint: "/medicines", fkIdField: "medicineId", fkLabel: m => m.medicineName },
+        { name: "dosage", label: "Dosage", type: "text" },
+        { name: "frequency", label: "Frequency", type: "text" },
+        { name: "duration", label: "Duration", type: "text" },
+        { name: "quantity", label: "Quantity", type: "number", required: true },
+      ],
+    });
+  </script>
+</body>
+</html>

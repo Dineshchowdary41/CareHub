@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>CareHub</title>
+</head>
+<body>
+  <script src="js/auth.js"></script>
+  <script>
+    const user = currentUser();
+    if (user) {
+      window.location.href = user.role === "Patient" ? "patient-dashboard.html" : "dashboard.html";
+    } else {
+      window.location.href = "login.html";
+    }
+  </script>
+</body>
+</html>

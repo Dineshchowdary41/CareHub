@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Purchase Orders — CareHub</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div><h2 id="pageTitle">Purchase Orders</h2><p id="pageSubtitle"></p></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <input class="search-box" id="searchInput" placeholder="Search purchase orders..." />
+          <button class="btn btn-primary" id="addBtn">+ Add</button>
+        </div>
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 id="modalTitle">Add Purchase Order</h3>
+      <div id="modalForm"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/crud.js"></script>
+  <script>
+    const me = requireAuth();
+    renderSidebar("purchase-orders");
+    const isAdmin = me && me.role === "Admin";
+
+    function statusPill(status) {
+      const map = { "Pending Approval": "pill-pending", "Approved": "pill-approved", "Received": "pill-received", "Rejected": "pill-rejected" };
+      return `<span class="pill ${map[status] || "pill-pending"}">${status}</span>`;
+    }
+
+    CRUD.init({
+      title: "Purchase Orders",
+      subtitle: "AI-recommended and manually created restock requests",
+      endpoint: "/purchase-orders",
+      idField: "purchaseOrderId",
+      columns: [
+        { key: "medicine", label: "Medicine", render: r => r.medicine ? r.medicine.medicineName : "-" },
+        { key: "supplier", label: "Supplier", render: r => r.supplier ? r.supplier.supplierName : "-" },
+        { key: "quantity", label: "Quantity" },
+        { key: "status", label: "Status", render: r => statusPill(r.status) },
+        { key: "createdAt", label: "Created", render: r => r.createdAt ? r.createdAt.replace("T", " ").slice(0, 16) : "-" },
+      ],
+      searchKeys: ["medicine", "supplier", "status"],
+      fields: [
+        { name: "medicine", label: "Medicine", type: "fk", required: true, fkEndpoint: "/medicines", fkIdField: "medicineId", fkLabel: m => m.medicineName },
+        { name: "supplier", label: "Supplier", type: "fk", required: true, fkEndpoint: "/suppliers", fkIdField: "supplierId", fkLabel: s => s.supplierName },
+        { name: "quantity", label: "Quantity", type: "number", required: true },
+        { name: "notes", label: "Notes", type: "textarea" },
+      ],
+      noDefaultActions: true,
+      rowActions: [
+        {
+          label: "Approve",
+          className: "btn-primary",
+          visible: r => isAdmin && r.status === "Pending Approval",
+          handler: async r => { await Api.patch(`/purchase-orders/${r.purchaseOrderId}/approve`); }
+        },
+        {
+          label: "Reject",
+          className: "btn-danger",
+          visible: r => isAdmin && r.status === "Pending Approval",
+          handler: async r => { await Api.patch(`/purchase-orders/${r.purchaseOrderId}/reject`); }
+        },
+        {
+          label: "Mark Received",
+          className: "btn-secondary",
+          visible: r => r.status === "Approved",
+          handler: async r => { await Api.patch(`/purchase-orders/${r.purchaseOrderId}/received`); }
+        },
+        {
+          label: "Delete",
+          className: "btn-danger",
+          visible: r => isAdmin,
+          handler: async r => {
+            if (!confirm("Delete this purchase order?")) return;
+            await Api.del(`/purchase-orders/${r.purchaseOrderId}`);
+          }
+        },
+      ],
+    });
+  </script>
+</body>
+</html>

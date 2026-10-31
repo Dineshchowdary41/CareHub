@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>My Health Record — CareHub</title>
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  .profile-section {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 10px;
+  }
+  .info-item {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+  .info-item .lbl {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .info-item .val {
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .welcome-card {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    padding: 24px;
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .welcome-card h2 {
+    margin: 0 0 8px;
+    font-size: 24px;
+  }
+  .welcome-card p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 14px;
+  }
+  .tab-container {
+    margin-top: 24px;
+  }
+  .tab-headers {
+    display: flex;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .tab-header {
+    background: none;
+    border: none;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-header.active {
+    color: var(--primary);
+    border-bottom: 3px solid var(--primary);
+    margin-bottom: -2px;
+  }
+  .tab-pane {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  .tab-pane.active {
+    display: block;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .invoice-modal {
+    width: 650px;
+    max-width: 90vw;
+  }
+  .invoice-header {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+  }
+  .invoice-details {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+  }
+  .invoice-table th, .invoice-table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  .invoice-table th {
+    background-color: #f8fafc;
+    font-weight: 600;
+  }
+  .invoice-total {
+    text-align: right;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary-dark);
+  }
+  .print-btn {
+    margin-top: 10px;
+  }
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    .modal-overlay.open, .modal-overlay.open * {
+      visibility: visible;
+    }
+    .modal-overlay.open {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      background: none;
+    }
+    .modal-actions {
+      display: none;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>My Health Record</h2>
+          <p>View your prescriptions, billing statements, and treatment summary</p>
+        </div>
+      </div>
+
+      <!-- Profile Overview -->
+      <div class="profile-section">
+        <div class="welcome-card">
+          <h2 id="patientGreeting">Hello!</h2>
+          <p>Welcome to your personal health portal. All your digital records are kept up-to-date by the hospital staff.</p>
+        </div>
+        <div class="card">
+          <h3>Demographic Profile</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="lbl">Registered Phone</div>
+              <div class="val" id="profPhone">—</div>
+            </div>
+            <div class="info-item">
+              <div class="lbl">Date of Birth</div>
+              <div class="val" id="profDob">—</div>
+            </div>
+            <div class="info-item">
+              <div class="lbl">Blood Group</div>
+              <div class="val" id="profBlood">—</div>
+            </div>
+            <div class="info-item">
+              <div class="lbl">Registered Date</div>
+              <div class="val" id="profRegDate">—</div>
+            </div>
+          </div>
+          <div style="margin-top:14px; font-size:13px;" id="profAddressBox">
+            <strong>Address:</strong> <span id="profAddress">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Records Section -->
+      <div class="tab-container">
+        <div class="tab-headers">
+          <button class="tab-header active" onclick="switchTab('prescriptions')">My Prescriptions</button>
+          <button class="tab-header" onclick="switchTab('bills')">My Bills &amp; Receipts</button>
+        </div>
+
+        <!-- Prescriptions Tab -->
+        <div id="tab-prescriptions" class="tab-pane active">
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Prescription ID</th>
+                  <th>Prescribed Date</th>
+                  <th>Consulting Doctor</th>
+                  <th>Notes</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="prescriptionBody">
+                <tr class="empty-row"><td colspan="5">Loading prescriptions...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Bills Tab -->
+        <div id="tab-bills" class="tab-pane">
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bill ID</th>
+                  <th>Billing Date</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="billBody">
+                <tr class="empty-row"><td colspan="5">Loading bills...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Prescription Items Modal -->
+  <div class="modal-overlay" id="prescriptionModal">
+    <div class="modal" style="width:600px;">
+      <h3>Prescription Medicine List</h3>
+      <div style="margin-bottom:12px; font-size:13px; color:var(--muted);">
+        Consulting Doctor: <strong id="presDoctorName" style="color:var(--text)">—</strong> &middot; 
+        Date: <strong id="presDateVal" style="color:var(--text)">—</strong>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Medicine</th>
+            <th>Dosage</th>
+            <th>Frequency</th>
+            <th>Duration</th>
+            <th>Qty</th>
+          </tr>
+        </thead>
+        <tbody id="presItemBody">
+          <tr><td colspan="5">Loading details...</td></tr>
+        </tbody>
+      </table>
+      <div class="modal-actions" style="margin-top:20px;">
+        <button class="btn btn-secondary" onclick="closePrescriptionModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Modal -->
+  <div class="modal-overlay" id="invoiceModal">
+    <div class="modal invoice-modal">
+      <div class="invoice-header">
+        <div>
+          <h2 style="margin:0;color:var(--primary-dark)">Care<span style="color:var(--accent)">Hub</span> Hospital</h2>
+          <p style="margin:4px 0 0;font-size:12px;color:var(--muted)">123 Healthcare Boulevard, Medical Zone</p>
+        </div>
+        <div style="text-align:right">
+          <h3 style="margin:0;color:var(--text)">INVOICE</h3>
+          <p style="margin:4px 0 0;font-size:12px;color:var(--muted)" id="invoiceIdVal">Bill #—</p>
+        </div>
+      </div>
+      <div class="invoice-details">
+        <div>
+          <span style="color:var(--muted)">PATIENT DETAIL</span><br/>
+          <strong id="invPatientName">—</strong><br/>
+          Phone: <span id="invPatientPhone">—</span>
+        </div>
+        <div style="text-align:right">
+          <span style="color:var(--muted)">BILLING DETAIL</span><br/>
+          Date: <strong id="invDateVal">—</strong><br/>
+          Status: <span id="invStatusVal">—</span>
+        </div>
+      </div>
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Unit Price</th>
+            <th>Qty</th>
+            <th style="text-align:right">Total</th>
+          </tr>
+        </thead>
+        <tbody id="invoiceItemBody">
+          <tr><td colspan="4">Loading items...</td></tr>
+        </tbody>
+      </table>
+      <div class="invoice-total">
+        Grand Total: ₹<span id="invoiceTotalVal">0.00</span>
+      </div>
+      <div class="modal-actions" style="margin-top:24px;">
+        <button class="btn btn-secondary" onclick="closeInvoiceModal()">Close</button>
+        <button class="btn btn-primary print-btn" onclick="window.print()">Print Invoice</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    const userObj = requireAuth();
+    renderSidebar("patient-dashboard");
+
+    let patientId = null;
+
+    if (userObj) {
+      patientId = userObj.patientId;
+      loadPatientDetails();
+      loadPrescriptions();
+      loadBills();
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll(".tab-header").forEach(h => h.classList.remove("active"));
+      document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+
+      event.target.classList.add("active");
+      document.getElementById("tab-" + tab).classList.add("active");
+    }
+
+    async function loadPatientDetails() {
+      try {
+        const p = await Api.get("/patients/" + patientId);
+        document.getElementById("patientGreeting").textContent = `Hello, ${p.name}!`;
+        document.getElementById("profPhone").textContent = p.phone || "—";
+        document.getElementById("profDob").textContent = p.dateOfBirth || "—";
+        document.getElementById("profBlood").textContent = p.bloodGroup || "—";
+        document.getElementById("profRegDate").textContent = p.createdAt || "—";
+        document.getElementById("profAddress").textContent = p.address || "—";
+      } catch (e) {
+        console.error("Could not load patient details:", e);
+      }
+    }
+
+    async function loadPrescriptions() {
+      const body = document.getElementById("prescriptionBody");
+      try {
+        const rows = await Api.get("/prescriptions/by-patient/" + patientId);
+        if (!rows.length) {
+          body.innerHTML = `<tr class="empty-row"><td colspan="5">No prescriptions found on your record.</td></tr>`;
+          return;
+        }
+        body.innerHTML = rows.map(r => `
+          <tr>
+            <td>PR-${r.prescriptionId}</td>
+            <td>${r.prescriptionDate || "—"}</td>
+            <td>${r.doctor ? r.doctor.name : "—"}</td>
+            <td>${r.notes || "—"}</td>
+            <td><button class="btn btn-secondary btn-sm" onclick="viewPrescription(${r.prescriptionId}, '${r.doctor ? r.doctor.name.replace(/'/g, "\\'") : "—"}', '${r.prescriptionDate || ""}')">View Medicine</button></td>
+          </tr>
+        `).join("");
+      } catch (e) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="5">Could not load prescriptions.</td></tr>`;
+      }
+    }
+
+    async function loadBills() {
+      const body = document.getElementById("billBody");
+      try {
+        const rows = await Api.get("/bills/by-patient/" + patientId);
+        if (!rows.length) {
+          body.innerHTML = `<tr class="empty-row"><td colspan="5">No billing records found.</td></tr>`;
+          return;
+        }
+        body.innerHTML = rows.map(r => {
+          const paid = r.paymentStatus === "Paid";
+          const statusClass = paid ? "pill-approved" : "pill-pending";
+          return `
+            <tr>
+              <td>BILL-${r.billId}</td>
+              <td>${r.billDate ? r.billDate.split("T")[0] : "—"}</td>
+              <td>₹${r.totalAmount ? r.totalAmount.toFixed(2) : "0.00"}</td>
+              <td><span class="pill ${statusClass}">${r.paymentStatus}</span></td>
+              <td><button class="btn btn-secondary btn-sm" onclick="viewInvoice(${r.billId}, ${r.totalAmount}, '${r.paymentStatus}', '${r.billDate ? r.billDate.split("T")[0] : ""}')">Invoice</button></td>
+            </tr>
+          `;
+        }).join("");
+      } catch (e) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="5">Could not load bills.</td></tr>`;
+      }
+    }
+
+    async function viewPrescription(id, doctorName, dateVal) {
+      document.getElementById("presDoctorName").textContent = doctorName;
+      document.getElementById("presDateVal").textContent = dateVal;
+      const body = document.getElementById("presItemBody");
+      body.innerHTML = `<tr><td colspan="5">Loading...</td></tr>`;
+      document.getElementById("prescriptionModal").classList.add("open");
+
+      try {
+        const items = await Api.get("/prescription-items/by-prescription/" + id);
+        if (!items.length) {
+          body.innerHTML = `<tr><td colspan="5" class="hint-text">No medicines listed in this prescription.</td></tr>`;
+          return;
+        }
+        body.innerHTML = items.map(i => `
+          <tr>
+            <td><strong>${i.medicine ? i.medicine.medicineName : "—"}</strong></td>
+            <td>${i.dosage || "—"}</td>
+            <td>${i.frequency || "—"}</td>
+            <td>${i.duration || "—"}</td>
+            <td>${i.quantity || "—"}</td>
+          </tr>
+        `).join("");
+      } catch (e) {
+        body.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">Error loading medicine details.</td></tr>`;
+      }
+    }
+
+    function closePrescriptionModal() {
+      document.getElementById("prescriptionModal").classList.remove("open");
+    }
+
+    async function viewInvoice(id, total, status, dateVal) {
+      document.getElementById("invoiceIdVal").textContent = `Bill #BILL-${id}`;
+      document.getElementById("invDateVal").textContent = dateVal;
+      document.getElementById("invStatusVal").innerHTML = `<span class="pill ${status === "Paid" ? "pill-approved" : "pill-pending"}">${status}</span>`;
+      document.getElementById("invoiceTotalVal").textContent = total.toFixed(2);
+      
+      const body = document.getElementById("invoiceItemBody");
+      body.innerHTML = `<tr><td colspan="4">Loading items...</td></tr>`;
+      document.getElementById("invoiceModal").classList.add("open");
+
+      try {
+        // Load details to populate header Patient Name / Phone
+        const p = await Api.get("/patients/" + patientId);
+        document.getElementById("invPatientName").textContent = p.name;
+        document.getElementById("invPatientPhone").textContent = p.phone || "—";
+
+        // Load bill items
+        const items = await Api.get("/bill-items/by-bill/" + id);
+        if (!items.length) {
+          body.innerHTML = `<tr><td colspan="4" class="hint-text">No bill items found.</td></tr>`;
+          return;
+        }
+        body.innerHTML = items.map(i => `
+          <tr>
+            <td>${i.medicine ? i.medicine.medicineName : "Dispensed Medicine"}</td>
+            <td>₹${i.unitPrice ? i.unitPrice.toFixed(2) : "0.00"}</td>
+            <td>${i.quantity || 0}</td>
+            <td style="text-align:right">₹${i.totalPrice ? i.totalPrice.toFixed(2) : "0.00"}</td>
+          </tr>
+        `).join("");
+      } catch (e) {
+        body.innerHTML = `<tr><td colspan="4" style="color:var(--danger)">Error loading invoice details.</td></tr>`;
+      }
+    }
+
+    function closeInvoiceModal() {
+      document.getElementById("invoiceModal").classList.remove("open");
+    }
+  </script>
+</body>
+</html>

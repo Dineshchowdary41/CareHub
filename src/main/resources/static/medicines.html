@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Medicines — CareHub 3.0</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>Medicines Catalog & Search</h2>
+          <p>Master hospital formulary with multi-criteria search, category filters, and live stock-status metrics</p>
+        </div>
+      </div>
+
+      <!-- Advanced Filter Controls -->
+      <div class="filter-bar">
+        <div class="filter-pills" id="stockStatusPills">
+          <button class="filter-pill active" onclick="setStatusFilter('ALL')">All Formularies</button>
+          <button class="filter-pill" onclick="setStatusFilter('AVAILABLE')">In Stock</button>
+          <button class="filter-pill" onclick="setStatusFilter('LOW_STOCK')">Low Stock</button>
+          <button class="filter-pill" onclick="setStatusFilter('EXPIRING_SOON')">Expiring Soon (30d)</button>
+          <button class="filter-pill" onclick="setStatusFilter('EXPIRED')">Expired</button>
+        </div>
+        <button class="btn btn-primary" onclick="openCreateModal()">+ Add Medicine</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header" style="flex-wrap:wrap; gap:12px;">
+          <input class="search-box" id="searchInput" placeholder="Search name, description, active salt..." oninput="triggerSearch()" style="max-width:280px;" />
+          
+          <select id="categoryFilter" onchange="triggerSearch()" style="max-width:200px;">
+            <option value="ALL">All Categories</option>
+          </select>
+
+          <select id="sortSelect" onchange="triggerSearch()" style="max-width:180px;">
+            <option value="name_asc">Sort: Name (A-Z)</option>
+            <option value="name_desc">Sort: Name (Z-A)</option>
+            <option value="quantity_desc">Sort: Stock (High-Low)</option>
+            <option value="quantity_asc">Sort: Stock (Low-High)</option>
+            <option value="expiry_asc">Sort: Expiry (Earliest)</option>
+            <option value="category_asc">Sort: Category</option>
+          </select>
+
+          <button class="btn btn-secondary btn-sm" onclick="triggerSearch()">Search</button>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Medicine Name</th>
+              <th>Category</th>
+              <th>Available Stock</th>
+              <th>Batches</th>
+              <th>Earliest Expiry</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="medicineTableBody">
+            <tr class="empty-row"><td colspan="7">Loading medicines...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Medicine Modal -->
+  <div class="modal-overlay" id="medicineModal">
+    <div class="modal">
+      <h3 id="modalTitle">Add Medicine</h3>
+      <form id="medForm" onsubmit="saveMedicine(event)">
+        <input type="hidden" id="medId" />
+        <div class="form-group">
+          <label>Medicine Name *</label>
+          <input type="text" id="modalMedName" required />
+        </div>
+        <div class="form-group">
+          <label>Category *</label>
+          <input type="text" id="modalCategory" placeholder="e.g. Antibiotics, Analgesic, Cardiovascular" required />
+        </div>
+        <div class="form-group">
+          <label>Unit</label>
+          <input type="text" id="modalUnit" placeholder="tablets, capsules, syrup, injection" />
+        </div>
+        <div class="form-group">
+          <label>Description / Therapeutic Notes</label>
+          <textarea id="modalDescription" placeholder="Indications, dosage guidelines..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Medicine</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    const user = requireAuth();
+    renderSidebar("medicines");
+
+    let currentStatus = "ALL";
+    let allMedicines = [];
+
+    function showToast(msg, isError) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.className = "toast show" + (isError ? " error" : "");
+      setTimeout(() => { t.className = "toast"; }, 2800);
+    }
+
+    async function loadCategories() {
+      try {
+        const cats = await Api.get("/medicines/categories");
+        const sel = document.getElementById("categoryFilter");
+        sel.innerHTML = '<option value="ALL">All Categories</option>' +
+          cats.map(c => `<option value="${c}">${c}</option>`).join("");
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    function setStatusFilter(status) {
+      currentStatus = status;
+      document.querySelectorAll("#stockStatusPills .filter-pill").forEach(p => p.classList.remove("active"));
+      event.target.classList.add("active");
+      triggerSearch();
+    }
+
+    async function triggerSearch() {
+      const q = document.getElementById("searchInput").value.trim();
+      const cat = document.getElementById("categoryFilter").value;
+      const sortVal = document.getElementById("sortSelect").value;
+      const [sortBy, direction] = sortVal.split("_");
+
+      const body = document.getElementById("medicineTableBody");
+      try {
+        const params = new URLSearchParams({
+          query: q,
+          category: cat,
+          status: currentStatus,
+          sortBy: sortBy,
+          direction: direction
+        });
+
+        const rows = await Api.get(`/medicines/search?${params.toString()}`);
+        allMedicines = rows;
+
+        if (!rows.length) {
+          body.innerHTML = `<tr class="empty-row"><td colspan="7">No medicines found matching the filters.</td></tr>`;
+          return;
+        }
+
+        body.innerHTML = rows.map(m => {
+          let statusBadge = '<span class="badge badge-low">Optimal Stock</span>';
+          if (m.isExpired) statusBadge = '<span class="badge badge-critical">Expired</span>';
+          else if (m.isLowStock) statusBadge = '<span class="badge badge-critical">Low Stock ⚠</span>';
+          else if (m.isExpiringSoon) statusBadge = '<span class="badge badge-medium">Expiring Soon</span>';
+
+          return `
+            <tr>
+              <td>
+                <strong>${m.medicineName}</strong>
+                ${m.description ? `<br/><small class="hint-text">${m.description}</small>` : ''}
+              </td>
+              <td>${m.category}</td>
+              <td><strong>${m.availableStock}</strong> <small>${m.unit}</small></td>
+              <td><small>${m.batchNumbers || '—'}</small></td>
+              <td>${m.earliestExpiry || '—'}</td>
+              <td>${statusBadge}</td>
+              <td class="actions-cell">
+                <button class="btn btn-secondary btn-sm" onclick="openEditModal(${m.medicineId})">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteMedicine(${m.medicineId})">Delete</button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      } catch (e) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="7">Error loading medicines: ${e.message}</td></tr>`;
+      }
+    }
+
+    function openCreateModal() {
+      document.getElementById("medId").value = "";
+      document.getElementById("modalTitle").textContent = "Add Medicine to Catalog";
+      document.getElementById("medForm").reset();
+      document.getElementById("medicineModal").classList.add("open");
+    }
+
+    function openEditModal(id) {
+      const m = allMedicines.find(item => item.medicineId === id);
+      if (!m) return;
+      document.getElementById("medId").value = m.medicineId;
+      document.getElementById("modalTitle").textContent = "Edit Medicine";
+      document.getElementById("modalMedName").value = m.medicineName;
+      document.getElementById("modalCategory").value = m.category;
+      document.getElementById("modalUnit").value = m.unit || "";
+      document.getElementById("modalDescription").value = m.description || "";
+      document.getElementById("medicineModal").classList.add("open");
+    }
+
+    function closeModal() {
+      document.getElementById("medicineModal").classList.remove("open");
+    }
+
+    async function saveMedicine(e) {
+      e.preventDefault();
+      const id = document.getElementById("medId").value;
+      const payload = {
+        medicineName: document.getElementById("modalMedName").value,
+        category: document.getElementById("modalCategory").value,
+        unit: document.getElementById("modalUnit").value,
+        description: document.getElementById("modalDescription").value
+      };
+
+      try {
+        if (id) {
+          await Api.put(`/medicines/${id}`, payload);
+          showToast("Medicine updated successfully");
+        } else {
+          await Api.post("/medicines", payload);
+          showToast("Medicine created successfully");
+        }
+        closeModal();
+        await loadCategories();
+        await triggerSearch();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    async function deleteMedicine(id) {
+      if (!confirm("Are you sure you want to delete this medicine?")) return;
+      try {
+        await Api.del(`/medicines/${id}`);
+        showToast("Medicine deleted");
+        await triggerSearch();
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    }
+
+    loadCategories();
+    triggerSearch();
+  </script>
+</body>
+</html>
